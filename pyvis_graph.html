@@ -1,0 +1,258 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 500px;
+                 background-color: #222222;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+             #loadingBar {
+                 position:absolute;
+                 top:0px;
+                 left:0px;
+                 width: 100%;
+                 height: 500px;
+                 background-color:rgba(200,200,200,0.8);
+                 -webkit-transition: all 0.5s ease;
+                 -moz-transition: all 0.5s ease;
+                 -ms-transition: all 0.5s ease;
+                 -o-transition: all 0.5s ease;
+                 transition: all 0.5s ease;
+                 opacity:1;
+             }
+
+             #bar {
+                 position:absolute;
+                 top:0px;
+                 left:0px;
+                 width:20px;
+                 height:20px;
+                 margin:auto auto auto auto;
+                 border-radius:11px;
+                 border:2px solid rgba(30,30,30,0.05);
+                 background: rgb(0, 173, 246); /* Old browsers */
+                 box-shadow: 2px 0px 4px rgba(0,0,0,0.4);
+             }
+
+             #border {
+                 position:absolute;
+                 top:10px;
+                 left:10px;
+                 width:500px;
+                 height:23px;
+                 margin:auto auto auto auto;
+                 box-shadow: 0px 0px 4px rgba(0,0,0,0.2);
+                 border-radius:10px;
+             }
+
+             #text {
+                 position:absolute;
+                 top:8px;
+                 left:530px;
+                 width:30px;
+                 height:50px;
+                 margin:auto auto auto auto;
+                 font-size:22px;
+                 color: #000000;
+             }
+
+             div.outerBorder {
+                 position:relative;
+                 top:400px;
+                 width:600px;
+                 height:44px;
+                 margin:auto auto auto auto;
+                 border:8px solid rgba(0,0,0,0.1);
+                 background: rgb(252,252,252); /* Old browsers */
+                 background: -moz-linear-gradient(top,  rgba(252,252,252,1) 0%, rgba(237,237,237,1) 100%); /* FF3.6+ */
+                 background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(252,252,252,1)), color-stop(100%,rgba(237,237,237,1))); /* Chrome,Safari4+ */
+                 background: -webkit-linear-gradient(top,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* Chrome10+,Safari5.1+ */
+                 background: -o-linear-gradient(top,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* Opera 11.10+ */
+                 background: -ms-linear-gradient(top,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* IE10+ */
+                 background: linear-gradient(to bottom,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* W3C */
+                 filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#fcfcfc', endColorstr='#ededed',GradientType=0 ); /* IE6-9 */
+                 border-radius:72px;
+                 box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
+             }
+             
+
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+            <div id="loadingBar">
+              <div class="outerBorder">
+                <div id="text">0%</div>
+                <div id="border">
+                  <div id="bar"></div>
+                </div>
+              </div>
+            </div>
+        
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"color": "#4b4bff", "font": {"color": "white"}, "id": "Popular_Bottled_Water", "label": "Popular_Bottled_Water", "shape": "dot", "size": 30}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_1", "label": "Vendor_1", "shape": "dot", "size": 20}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Contaminated_Buckwheat_7", "label": "Contaminated_Buckwheat_7", "shape": "dot", "size": 30}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_2", "label": "Vendor_2", "shape": "dot", "size": 20}, {"color": "#4b4bff", "font": {"color": "white"}, "id": "Safe_Rice_A", "label": "Safe_Rice_A", "shape": "dot", "size": 30}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_3", "label": "Vendor_3", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_4", "label": "Vendor_4", "shape": "dot", "size": 20}, {"color": "#4b4bff", "font": {"color": "white"}, "id": "Safe_Flour_B", "label": "Safe_Flour_B", "shape": "dot", "size": 30}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_5", "label": "Vendor_5", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_6", "label": "Vendor_6", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_7", "label": "Vendor_7", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_8", "label": "Vendor_8", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_9", "label": "Vendor_9", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_10", "label": "Vendor_10", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_11", "label": "Vendor_11", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_12", "label": "Vendor_12", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_13", "label": "Vendor_13", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_14", "label": "Vendor_14", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_15", "label": "Vendor_15", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_16", "label": "Vendor_16", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_17", "label": "Vendor_17", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_18", "label": "Vendor_18", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_19", "label": "Vendor_19", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_20", "label": "Vendor_20", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_21", "label": "Vendor_21", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_22", "label": "Vendor_22", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_23", "label": "Vendor_23", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_24", "label": "Vendor_24", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_25", "label": "Vendor_25", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_26", "label": "Vendor_26", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_27", "label": "Vendor_27", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_28", "label": "Vendor_28", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_29", "label": "Vendor_29", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_30", "label": "Vendor_30", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_31", "label": "Vendor_31", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_32", "label": "Vendor_32", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_33", "label": "Vendor_33", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_34", "label": "Vendor_34", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_35", "label": "Vendor_35", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_36", "label": "Vendor_36", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_37", "label": "Vendor_37", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_38", "label": "Vendor_38", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_39", "label": "Vendor_39", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_40", "label": "Vendor_40", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_41", "label": "Vendor_41", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_42", "label": "Vendor_42", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_43", "label": "Vendor_43", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_44", "label": "Vendor_44", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_45", "label": "Vendor_45", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_46", "label": "Vendor_46", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_47", "label": "Vendor_47", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_48", "label": "Vendor_48", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_49", "label": "Vendor_49", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_50", "label": "Vendor_50", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_51", "label": "Vendor_51", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_52", "label": "Vendor_52", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_53", "label": "Vendor_53", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_54", "label": "Vendor_54", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_55", "label": "Vendor_55", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_56", "label": "Vendor_56", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_57", "label": "Vendor_57", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_58", "label": "Vendor_58", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_59", "label": "Vendor_59", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_60", "label": "Vendor_60", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_61", "label": "Vendor_61", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_62", "label": "Vendor_62", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_63", "label": "Vendor_63", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_64", "label": "Vendor_64", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_65", "label": "Vendor_65", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_66", "label": "Vendor_66", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_67", "label": "Vendor_67", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_68", "label": "Vendor_68", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_69", "label": "Vendor_69", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_70", "label": "Vendor_70", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_71", "label": "Vendor_71", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_72", "label": "Vendor_72", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_73", "label": "Vendor_73", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_74", "label": "Vendor_74", "shape": "dot", "size": 20}, {"color": "#ffa500", "font": {"color": "white"}, "id": "Vendor_75", "label": "Vendor_75", "shape": "dot", "size": 20}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_1", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_3", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_5", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_6", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_7", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_8", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_10", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_12", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_14", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_15", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_17", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_22", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_27", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_45", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_46", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_48", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_50", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_51", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_56", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_62", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_63", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_65", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_78", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_84", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_87", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_90", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_93", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_98", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_99", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_103", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_104", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_106", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_110", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_111", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_120", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_123", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_129", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_135", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_139", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_142", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_146", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_158", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_162", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_171", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_172", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_176", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_178", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_188", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_190", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_193", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_194", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_197", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_201", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_203", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_204", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_206", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_207", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_210", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_211", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_212", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_217", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_218", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_219", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_223", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_224", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_225", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_227", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_232", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_234", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_235", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_236", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_238", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_239", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_242", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_248", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_249", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_250", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_251", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_254", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_258", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_262", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_269", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_271", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_273", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_278", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_280", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_286", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_287", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_289", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_290", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_292", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_297", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_299", "label": " ", "shape": "dot", "size": 10}, {"color": "#ff4b4b", "font": {"color": "white"}, "id": "Patient_300", "label": " ", "shape": "dot", "size": 10}]);
+                  edges = new vis.DataSet([{"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_1"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_2"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_3"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_4"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_5"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_6"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_7"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_8"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_9"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_10"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_11"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_12"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_13"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_14"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_15"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_16"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_17"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_18"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_19"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_20"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_21"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_22"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_23"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_24"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_25"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_26"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_27"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_28"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_29"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_30"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_31"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_32"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_33"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_34"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_35"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_36"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_37"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_38"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_39"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_40"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_41"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_42"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_43"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_44"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_45"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_46"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_47"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_48"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_49"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_50"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_51"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_52"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_53"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_54"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_55"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_56"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_57"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_58"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_59"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_60"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_61"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_62"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_63"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_64"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_65"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_66"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_67"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_68"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_69"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_70"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_71"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_72"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_73"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_74"}, {"color": "#555555", "from": "Popular_Bottled_Water", "to": "Vendor_75"}, {"color": "#555555", "from": "Vendor_1", "to": "Patient_50"}, {"color": "#555555", "from": "Vendor_1", "to": "Patient_78"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_1"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_3"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_8"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_10"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_12"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_14"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_19"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_21"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_22"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_23"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_29"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_30"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_32"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_42"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_43"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_44"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_45"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_46"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_54"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_55"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_58"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_60"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_67"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_68"}, {"color": "#555555", "from": "Contaminated_Buckwheat_7", "to": "Vendor_70"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_2"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_5"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_6"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_7"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_16"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_24"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_25"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_26"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_31"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_34"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_36"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_37"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_39"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_47"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_48"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_49"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_52"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_59"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_61"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_62"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_63"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_64"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_65"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_66"}, {"color": "#555555", "from": "Safe_Rice_A", "to": "Vendor_74"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_4"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_9"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_11"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_13"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_15"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_17"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_18"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_20"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_27"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_28"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_33"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_35"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_38"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_40"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_41"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_50"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_51"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_53"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_56"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_57"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_69"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_71"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_72"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_73"}, {"color": "#555555", "from": "Safe_Flour_B", "to": "Vendor_75"}, {"color": "#555555", "from": "Vendor_8", "to": "Patient_1"}, {"color": "#555555", "from": "Vendor_8", "to": "Patient_172"}, {"color": "#555555", "from": "Vendor_8", "to": "Patient_210"}, {"color": "#555555", "from": "Vendor_8", "to": "Patient_223"}, {"color": "#555555", "from": "Vendor_10", "to": "Patient_238"}, {"color": "#555555", "from": "Vendor_11", "to": "Patient_235"}, {"color": "#555555", "from": "Vendor_12", "to": "Patient_45"}, {"color": "#555555", "from": "Vendor_12", "to": "Patient_46"}, {"color": "#555555", "from": "Vendor_12", "to": "Patient_176"}, {"color": "#555555", "from": "Vendor_12", "to": "Patient_211"}, {"color": "#555555", "from": "Vendor_12", "to": "Patient_239"}, {"color": "#555555", "from": "Vendor_13", "to": "Patient_300"}, {"color": "#555555", "from": "Vendor_14", "to": "Patient_158"}, {"color": "#555555", "from": "Vendor_14", "to": "Patient_207"}, {"color": "#555555", "from": "Vendor_14", "to": "Patient_271"}, {"color": "#555555", "from": "Vendor_15", "to": "Patient_292"}, {"color": "#555555", "from": "Vendor_19", "to": "Patient_5"}, {"color": "#555555", "from": "Vendor_19", "to": "Patient_56"}, {"color": "#555555", "from": "Vendor_19", "to": "Patient_139"}, {"color": "#555555", "from": "Vendor_19", "to": "Patient_218"}, {"color": "#555555", "from": "Vendor_19", "to": "Patient_232"}, {"color": "#555555", "from": "Vendor_20", "to": "Patient_51"}, {"color": "#555555", "from": "Vendor_21", "to": "Patient_190"}, {"color": "#555555", "from": "Vendor_21", "to": "Patient_248"}, {"color": "#555555", "from": "Vendor_21", "to": "Patient_287"}, {"color": "#555555", "from": "Vendor_22", "to": "Patient_3"}, {"color": "#555555", "from": "Vendor_22", "to": "Patient_12"}, {"color": "#555555", "from": "Vendor_22", "to": "Patient_135"}, {"color": "#555555", "from": "Vendor_22", "to": "Patient_289"}, {"color": "#555555", "from": "Vendor_23", "to": "Patient_227"}, {"color": "#555555", "from": "Vendor_26", "to": "Patient_104"}, {"color": "#555555", "from": "Vendor_26", "to": "Patient_297"}, {"color": "#555555", "from": "Vendor_29", "to": "Patient_65"}, {"color": "#555555", "from": "Vendor_29", "to": "Patient_142"}, {"color": "#555555", "from": "Vendor_29", "to": "Patient_273"}, {"color": "#555555", "from": "Vendor_29", "to": "Patient_299"}, {"color": "#555555", "from": "Vendor_30", "to": "Patient_14"}, {"color": "#555555", "from": "Vendor_30", "to": "Patient_146"}, {"color": "#555555", "from": "Vendor_30", "to": "Patient_162"}, {"color": "#555555", "from": "Vendor_30", "to": "Patient_242"}, {"color": "#555555", "from": "Vendor_31", "to": "Patient_6"}, {"color": "#555555", "from": "Vendor_32", "to": "Patient_15"}, {"color": "#555555", "from": "Vendor_32", "to": "Patient_129"}, {"color": "#555555", "from": "Vendor_41", "to": "Patient_62"}, {"color": "#555555", "from": "Vendor_41", "to": "Patient_290"}, {"color": "#555555", "from": "Vendor_42", "to": "Patient_103"}, {"color": "#555555", "from": "Vendor_42", "to": "Patient_188"}, {"color": "#555555", "from": "Vendor_43", "to": "Patient_17"}, {"color": "#555555", "from": "Vendor_43", "to": "Patient_251"}, {"color": "#555555", "from": "Vendor_44", "to": "Patient_111"}, {"color": "#555555", "from": "Vendor_44", "to": "Patient_219"}, {"color": "#555555", "from": "Vendor_44", "to": "Patient_224"}, {"color": "#555555", "from": "Vendor_45", "to": "Patient_63"}, {"color": "#555555", "from": "Vendor_45", "to": "Patient_110"}, {"color": "#555555", "from": "Vendor_45", "to": "Patient_212"}, {"color": "#555555", "from": "Vendor_46", "to": "Patient_87"}, {"color": "#555555", "from": "Vendor_46", "to": "Patient_93"}, {"color": "#555555", "from": "Vendor_46", "to": "Patient_171"}, {"color": "#555555", "from": "Vendor_46", "to": "Patient_197"}, {"color": "#555555", "from": "Vendor_52", "to": "Patient_8"}, {"color": "#555555", "from": "Vendor_52", "to": "Patient_286"}, {"color": "#555555", "from": "Vendor_54", "to": "Patient_90"}, {"color": "#555555", "from": "Vendor_54", "to": "Patient_249"}, {"color": "#555555", "from": "Vendor_54", "to": "Patient_250"}, {"color": "#555555", "from": "Vendor_55", "to": "Patient_10"}, {"color": "#555555", "from": "Vendor_55", "to": "Patient_48"}, {"color": "#555555", "from": "Vendor_55", "to": "Patient_203"}, {"color": "#555555", "from": "Vendor_56", "to": "Patient_120"}, {"color": "#555555", "from": "Vendor_56", "to": "Patient_278"}, {"color": "#555555", "from": "Vendor_58", "to": "Patient_106"}, {"color": "#555555", "from": "Vendor_58", "to": "Patient_123"}, {"color": "#555555", "from": "Vendor_58", "to": "Patient_217"}, {"color": "#555555", "from": "Vendor_60", "to": "Patient_22"}, {"color": "#555555", "from": "Vendor_60", "to": "Patient_84"}, {"color": "#555555", "from": "Vendor_60", "to": "Patient_194"}, {"color": "#555555", "from": "Vendor_60", "to": "Patient_206"}, {"color": "#555555", "from": "Vendor_60", "to": "Patient_225"}, {"color": "#555555", "from": "Vendor_60", "to": "Patient_262"}, {"color": "#555555", "from": "Vendor_63", "to": "Patient_254"}, {"color": "#555555", "from": "Vendor_66", "to": "Patient_27"}, {"color": "#555555", "from": "Vendor_67", "to": "Patient_236"}, {"color": "#555555", "from": "Vendor_68", "to": "Patient_98"}, {"color": "#555555", "from": "Vendor_68", "to": "Patient_193"}, {"color": "#555555", "from": "Vendor_68", "to": "Patient_258"}, {"color": "#555555", "from": "Vendor_70", "to": "Patient_7"}, {"color": "#555555", "from": "Vendor_70", "to": "Patient_201"}, {"color": "#555555", "from": "Vendor_70", "to": "Patient_269"}, {"color": "#555555", "from": "Vendor_71", "to": "Patient_204"}, {"color": "#555555", "from": "Vendor_71", "to": "Patient_280"}, {"color": "#555555", "from": "Vendor_73", "to": "Patient_99"}, {"color": "#555555", "from": "Vendor_74", "to": "Patient_178"}, {"color": "#555555", "from": "Vendor_75", "to": "Patient_234"}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": false
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "enabled": true,
+        "repulsion": {
+            "centralGravity": 0.1,
+            "damping": 0.95,
+            "nodeDistance": 200,
+            "springConstant": 0.05,
+            "springLength": 200
+        },
+        "solver": "repulsion",
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+
+                  
+
+
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+
+                  
+
+
+                  
+                      network.on("stabilizationProgress", function(params) {
+                          document.getElementById('loadingBar').removeAttribute("style");
+                          var maxWidth = 496;
+                          var minWidth = 20;
+                          var widthFactor = params.iterations/params.total;
+                          var width = Math.max(minWidth,maxWidth * widthFactor);
+                          document.getElementById('bar').style.width = width + 'px';
+                          document.getElementById('text').innerHTML = Math.round(widthFactor*100) + '%';
+                      });
+                      network.once("stabilizationIterationsDone", function() {
+                          document.getElementById('text').innerHTML = '100%';
+                          document.getElementById('bar').style.width = '496px';
+                          document.getElementById('loadingBar').style.opacity = 0;
+                          // really clean the dom element
+                          setTimeout(function () {document.getElementById('loadingBar').style.display = 'none';}, 500);
+                      });
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>
