@@ -7,6 +7,7 @@ from pyvis.network import Network
 import pydeck as pdk
 import os
 import html
+import altair as alt
 from generate_data import generate_seeded_outbreak_data
 
 st.set_page_config(layout="wide", page_title="Tracing the Source | Outbreak Intelligence")
@@ -317,7 +318,7 @@ body:has([data-testid="stSidebar"][aria-expanded="false"]) .st-key-nav { left: 0
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
 }
-.st-key-cursorfx { display: none; }
+.st-key-cursorfx, .st-key-splashfx { display: none; }
 /* ===== Targeting cursor (drawn by the cursor script; only active on mouse devices) ===== */
 html.tc-cursor-on, html.tc-cursor-on * { cursor: none !important; }
 html.tc-cursor-on input[type="text"], html.tc-cursor-on textarea { cursor: text !important; }
@@ -384,6 +385,23 @@ html.tc-cursor-on input[type="text"], html.tc-cursor-on textarea { cursor: text 
 .runner .rstats { display: flex; flex-wrap: wrap; gap: 6px 16px; font-family: var(--mono); font-size: 0.82rem; color: var(--text); }
 .runner .code { margin-top: 10px; font-size: 0.8rem; }
 @media (max-width: 900px) { .runners { grid-template-columns: 1fr; } }
+
+/* SitRep ticker */
+.sitrep { display: flex; align-items: stretch; margin: -4px 0 16px 0; border: 1px solid var(--line); background: var(--panel);
+          backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); overflow: hidden; }
+.sitrep-tag { flex: none; display: flex; align-items: center; padding: 0 16px 0 12px; font-family: var(--mono); font-size: 0.75rem; font-weight: 600;
+              letter-spacing: 0.12em; text-transform: uppercase; color: #1a1b20; background: var(--accent);
+              clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+.sitrep-tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #1a1b20; margin-right: 8px; animation: blink 1.2s steps(2) infinite; }
+.sitrep-track { flex: 1; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
+.sitrep-run { display: inline-flex; white-space: nowrap; gap: 18px; padding: 9px 0; font-family: var(--mono); font-size: 0.85rem; color: var(--muted);
+              animation: sitrep-scroll 38s linear infinite; }
+.sitrep-run b { color: var(--text); font-weight: 600; }
+.sitrep-run .sep { color: var(--accent); font-size: 0.7rem; align-self: center; }
+.sitrep:hover .sitrep-run { animation-play-state: paused; }
+@keyframes sitrep-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes blink { 50% { opacity: 0.2; } }
+@media (prefers-reduced-motion: reduce) { .sitrep-run { white-space: normal; flex-wrap: wrap; animation: none; padding: 9px 12px; } }
 
 /* ===== Light mode (set by the theme toggle; html[data-mode] comes from the page script) ===== */
 html[data-mode="light"] {
@@ -456,6 +474,129 @@ deduped_patients = raw_patients.drop_duplicates(subset=['patient_id'])
 duplicates_removed = total_raw_records - len(deduped_patients)
 cleaned_patients = deduped_patients.dropna(subset=['reported_vendor', 'status']).copy()
 missing_removed = len(deduped_patients) - len(cleaned_patients)
+
+# LOADING SCREEN (UI only): plays once per browser tab, then fades into the dashboard
+SPLASH_JS = r"""
+<script>
+(function () {
+  const w = window.parent, d = w.document;
+  if (d.getElementById('tc-splash') || w.sessionStorage.getItem('tc-splash-seen')) return;
+  w.sessionStorage.setItem('tc-splash-seen', '1');
+  const reduce = w.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let mode = 'dark';
+  try { if (JSON.parse(w.localStorage.getItem('stActiveTheme-' + w.location.pathname + '-v2')) === 'Light') mode = 'light'; } catch (e) {}
+
+  const css = d.createElement('style');
+  css.id = 'tc-splash-css';
+  css.textContent = `
+  #tc-splash { position: fixed; inset: 0; z-index: 2147483646; display: grid; place-items: center; overflow: hidden;
+    --sp-bg: #101114; --sp-text: #e7e3dc; --sp-muted: #9f978d; --sp-accent: #d9a441; --sp-teal: #7cc4c0; --sp-line: rgba(255,255,255,0.06);
+    background: radial-gradient(ellipse at 70% 10%, rgba(217,164,65,0.16), transparent 55%), radial-gradient(ellipse at 10% 95%, rgba(47,111,108,0.28), transparent 55%), var(--sp-bg);
+    font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace; color: var(--sp-text); transition: opacity .6s ease, transform .6s ease; }
+  #tc-splash.light { --sp-bg: #f5f1e8; --sp-text: #26231e; --sp-muted: #6d665c; --sp-accent: #b07a16; --sp-teal: #2c8c86; --sp-line: rgba(60,45,20,0.08);
+    background: radial-gradient(ellipse at 70% 10%, rgba(176,122,22,0.14), transparent 55%), radial-gradient(ellipse at 10% 95%, rgba(44,140,134,0.14), transparent 55%), var(--sp-bg); }
+  #tc-splash::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(var(--sp-line) 1px, transparent 1px) 0 0 / 24px 24px, linear-gradient(90deg, var(--sp-line) 1px, transparent 1px) 0 0 / 24px 24px; }
+  #tc-splash.out { opacity: 0; transform: scale(1.04); pointer-events: none; }
+  #tc-splash .sp-wrap { position: relative; width: min(560px, 88vw); display: flex; flex-direction: column; align-items: center; gap: 22px; }
+  #tc-splash .sp-radar { position: relative; width: 150px; height: 150px; }
+  #tc-splash .sp-radar .ring { position: absolute; inset: 0; border-radius: 50%; border: 1px solid var(--sp-accent); opacity: .35; }
+  #tc-splash .sp-radar .ring.r2 { inset: 22px; opacity: .25; } #tc-splash .sp-radar .ring.r3 { inset: 46px; opacity: .2; }
+  #tc-splash .sp-radar .sweep { position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(217,164,65,0.55), rgba(217,164,65,0.05) 50deg, transparent 90deg); animation: sp-spin 1.6s linear infinite; }
+  #tc-splash .sp-radar .core { position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px; border-radius: 50%;
+    background: var(--sp-accent); box-shadow: 0 0 18px 4px rgba(217,164,65,.6); }
+  #tc-splash .sp-radar .blip { position: absolute; width: 8px; height: 8px; margin: -4px; border-radius: 50%; background: var(--sp-teal); opacity: 0; animation: sp-blip 1.6s ease-out infinite; }
+  #tc-splash .sp-radar .b1 { left: 72%; top: 30%; animation-delay: .25s; } #tc-splash .sp-radar .b2 { left: 28%; top: 64%; animation-delay: .8s; } #tc-splash .sp-radar .b3 { left: 62%; top: 74%; animation-delay: 1.2s; }
+  #tc-splash .sp-radar .br { position: absolute; width: 16px; height: 16px; border: 0 solid var(--sp-accent); }
+  #tc-splash .sp-radar .tl { left: -14px; top: -14px; border-top-width: 2px; border-left-width: 2px; }
+  #tc-splash .sp-radar .tr { right: -14px; top: -14px; border-top-width: 2px; border-right-width: 2px; }
+  #tc-splash .sp-radar .bl { left: -14px; bottom: -14px; border-bottom-width: 2px; border-left-width: 2px; }
+  #tc-splash .sp-radar .bb { right: -14px; bottom: -14px; border-bottom-width: 2px; border-right-width: 2px; }
+  #tc-splash.locked .sp-radar .br { border-color: var(--sp-teal); transition: border-color .3s; }
+  #tc-splash .sp-title { font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: clamp(1.6rem, 4vw, 2.3rem); letter-spacing: .14em; min-height: 1.3em; }
+  #tc-splash .sp-title .caret { display: inline-block; width: .55em; height: 1em; margin-left: 4px; vertical-align: -.12em; background: var(--sp-accent); animation: sp-caret .8s steps(2) infinite; }
+  #tc-splash .sp-sub { margin-top: -14px; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--sp-muted); }
+  #tc-splash .sp-log { width: 100%; min-height: 150px; font-size: .82rem; line-height: 1.95; color: var(--sp-muted); }
+  #tc-splash .sp-log div { display: flex; justify-content: space-between; gap: 16px; animation: sp-in .25s ease-out both; }
+  #tc-splash .sp-log b { font-weight: 600; color: var(--sp-teal); }
+  #tc-splash .sp-log .lock b { color: var(--sp-accent); }
+  #tc-splash .sp-bar { width: 100%; height: 6px; background: var(--sp-line); position: relative; overflow: hidden; }
+  #tc-splash .sp-bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--sp-accent); box-shadow: 0 0 12px rgba(217,164,65,.7); transition: width .25s ease; }
+  #tc-splash .sp-foot { width: 100%; display: flex; justify-content: space-between; font-size: .75rem; color: var(--sp-muted); letter-spacing: .08em; }
+  @keyframes sp-spin { to { transform: rotate(360deg); } }
+  @keyframes sp-blip { 0% { opacity: 0; transform: scale(.4); } 20% { opacity: 1; transform: scale(1.3); } 100% { opacity: 0; transform: scale(.8); } }
+  @keyframes sp-caret { 50% { opacity: 0; } }
+  @keyframes sp-in { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+  `;
+  d.head.appendChild(css);
+
+  const el = d.createElement('div');
+  el.id = 'tc-splash';
+  if (mode === 'light') el.classList.add('light');
+  el.innerHTML =
+    '<div class="sp-wrap">' +
+      '<div class="sp-radar"><div class="ring"></div><div class="ring r2"></div><div class="ring r3"></div><div class="sweep"></div>' +
+      '<div class="blip b1"></div><div class="blip b2"></div><div class="blip b3"></div><div class="core"></div>' +
+      '<i class="br tl"></i><i class="br tr"></i><i class="br bl"></i><i class="br bb"></i></div>' +
+      '<div class="sp-title"><span class="t"></span><span class="caret"></span></div>' +
+      '<div class="sp-sub">Outbreak console · __AREA__</div>' +
+      '<div class="sp-log"></div>' +
+      '<div class="sp-bar"><i></i></div>' +
+      '<div class="sp-foot"><span class="pct">0%</span><span>Click or press any key to skip</span></div>' +
+    '</div>';
+  d.body.appendChild(el);
+
+  const title = 'TRACING THE SOURCE', tEl = el.querySelector('.t'), log = el.querySelector('.sp-log'),
+        bar = el.querySelector('.sp-bar i'), pct = el.querySelector('.pct');
+  const steps = [
+    ['Ingesting __RAW__ case reports', 'OK'],
+    ['Removing __DUPS__ duplicates, __MISSING__ incomplete', 'OK'],
+    ['Mapping __VENDORS__ vendors across __WARDS__ wards', 'OK'],
+    ['Tracing __BATCHES__ batches → __WHOLESALERS__ wholesalers', 'OK'],
+    ['Running Bayesian traceback (past data only)', 'SOURCE LOCKED']
+  ];
+  let done = false;
+  function finish() {
+    if (done) return; done = true;
+    el.classList.add('out');
+    setTimeout(function () { el.remove(); css.remove(); }, 650);
+  }
+  ['click', 'keydown'].forEach(function (ev) { d.addEventListener(ev, finish, { once: true }); });
+  if (reduce) { tEl.textContent = title; setTimeout(finish, 700); return; }
+
+  let i = 0;
+  (function type() { if (i <= title.length) { tEl.textContent = title.slice(0, i++); setTimeout(type, 45); } })();
+  steps.forEach(function (s, k) {
+    setTimeout(function () {
+      if (done) return;
+      const row = d.createElement('div');
+      if (k === steps.length - 1) { row.className = 'lock'; el.classList.add('locked'); }
+      row.innerHTML = '<span>&gt; ' + s[0] + '</span><b>' + s[1] + '</b>';
+      log.appendChild(row);
+      const p = Math.round((k + 1) / steps.length * 100);
+      bar.style.width = p + '%'; pct.textContent = p + '%';
+    }, 700 + k * 420);
+  });
+  // Leave once the dashboard has drawn (and the boot log has played), or after 6 s at most
+  const start = Date.now();
+  (function wait() {
+    if (done) return;
+    const ready = d.querySelector('.statusbar') && Date.now() - start > 700 + steps.length * 420 + 450;
+    if (ready || Date.now() - start > 6000) finish(); else setTimeout(wait, 120);
+  })();
+})();
+</script>
+"""
+_n_wholesalers = df_batches['supplier'].nunique() if 'supplier' in df_batches.columns else 0
+SPLASH_JS = (SPLASH_JS
+    .replace("__AREA__", "Thane · Kalyan · Dombivli")
+    .replace("__RAW__", str(total_raw_records)).replace("__DUPS__", str(duplicates_removed))
+    .replace("__MISSING__", str(missing_removed)).replace("__VENDORS__", str(df_vendors['vendor_id'].nunique()))
+    .replace("__WARDS__", str(df_vendors['ward'].nunique())).replace("__BATCHES__", str(len(df_batches)))
+    .replace("__WHOLESALERS__", str(_n_wholesalers)))
+with st.container(key="splashfx"):
+    components.html(SPLASH_JS, height=0)
 
 # 2. SIDEBAR: TEMPORAL CONTROLS & LIVE HOSPITAL INTAKE
 st.sidebar.header("Outbreak simulation controls")
@@ -602,7 +743,7 @@ CURSOR_JS = r"""
       let mode = null;
       try { mode = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
       if (mode !== 'Light' && mode !== 'Dark') {  /* first visit (or 'System'): start in dark mode */
-        localStorage.setItem(KEY, JSON.stringify('Dark')); location.reload(); return;
+        localStorage.setItem(KEY, JSON.stringify('Dark')); sessionStorage.removeItem('tc-splash-seen'); location.reload(); return;
       }
       document.documentElement.setAttribute('data-mode', mode.toLowerCase());
       document.addEventListener('click', function (e) {
@@ -740,6 +881,23 @@ if view_option == "Main Dashboard":
         counts = sick_df.merge(df_vendors, left_on='reported_vendor', right_on='vendor_id')['batch_received'].value_counts()
         return (counts.index[0], int(counts.iloc[0])) if len(counts) else (None, 0)
 
+    # AUTO SITREP TICKER (written from the live numbers; rule-based, not an LLM)
+    if top_1_suspect is not None:
+        n_target_vendors = df_vendors.loc[df_vendors['batch_received'] == prime_suspect, 'vendor_id'].nunique()
+        sitrep = [
+            f"Day {current_day}: <b>{len(sick_patients)}</b> confirmed cases in <b>{affected_wards}/{total_wards}</b> wards",
+            f"Lead suspect <b>{html.escape(short_name(prime_suspect))}</b> ({html.escape(str(FOOD_BY_BATCH.get(prime_suspect, '')))}) at <b>{top_1_suspect['Risk Score (%)']}%</b> risk, {top_1_suspect['Relative Risk']} baseline",
+            f"Pull this batch at <b>{n_target_vendors}</b> vendors supplied by {html.escape(str(top_1_suspect['Wholesaler']))}",
+            f"<b>{total_vendors - n_target_vendors}</b> vendors spared a city-wide recall",
+        ]
+        ticker = '<span class="sep">◆</span>'.join(f"<span>{item}</span>" for item in sitrep)
+        st.markdown(f"""
+<div class="sitrep" title="Auto-generated situation report: updates with the day slider and new case reports">
+  <div class="sitrep-tag">SitRep</div>
+  <div class="sitrep-track"><div class="sitrep-run">{ticker}<span class="sep">◆</span>{ticker}<span class="sep">◆</span></div></div>
+</div>
+""", unsafe_allow_html=True)
+
     # RUBRIC: TOP-1 & TOP-3 LIST + EARLY DETECTION BANNER
     if top_1_suspect is not None:
         rc_class = "rc1" if top_1_suspect['Reason Code'].startswith("RC-01") else "rc2" if top_1_suspect['Reason Code'].startswith("RC-02") else "rc3"
@@ -796,6 +954,43 @@ if view_option == "Main Dashboard":
     <div class="track"><div class="fill" style="width:{pct(affected_wards, total_wards):.0f}%"></div></div></div>
 </div>
 """, unsafe_allow_html=True)
+
+    # EPI-CURVE: sick cases by time of eating, split by link to the top-1 suspect batch
+    with st.container(border=True):
+        st.subheader("Epidemic curve (sick cases by time of eating)")
+        st.caption(f"3-hour slots, reports up to Day {current_day}. Amber = ate at a vendor stocking the top-1 suspect batch; teal = all other sick cases.")
+        if sick_patients.empty:
+            st.info("No confirmed sick cases yet.")
+        else:
+            suspect_vendors = set(df_vendors.loc[df_vendors['batch_received'] == prime_suspect, 'vendor_id'])
+            epi = sick_patients[['reported_vendor', 'consumption_time']].copy()
+            epi['slot'] = pd.to_datetime(epi['consumption_time'], errors='coerce').dt.floor('3h')
+            epi = epi.dropna(subset=['slot'])
+            epi['Link'] = np.where(epi['reported_vendor'].isin(suspect_vendors), f"Top-1 suspect ({short_name(prime_suspect)})", "Other sick cases")
+            epi_counts = epi.groupby(['slot', 'Link']).size().reset_index(name='Cases')
+            light = THEME_TYPE == "light"
+            accent, teal = ("#b07a16", "#2c8c86") if light else ("#d9a441", "#7cc4c0")
+            ink, grid = ("#6d665c", "rgba(60,45,20,0.10)") if light else ("#b3ada5", "rgba(255,255,255,0.07)")
+            link_order = [f"Top-1 suspect ({short_name(prime_suspect)})", "Other sick cases"]
+            chart = (
+                alt.Chart(epi_counts)
+                .mark_bar(width={"band": 0.86}, cornerRadiusTopLeft=2, cornerRadiusTopRight=2)
+                .encode(
+                    x=alt.X('slot:T', title=None, timeUnit=alt.TimeUnitParams(unit='yearmonthdatehours', step=3),
+                            axis=alt.Axis(format='%a %d · %H:%M', labelAngle=0, labelColor=ink, tickColor=grid, domainColor=grid, labelFontSize=11)),
+                    y=alt.Y('Cases:Q', stack='zero', title='Sick cases',
+                            axis=alt.Axis(labelColor=ink, titleColor=ink, gridColor=grid, domainColor=grid, tickColor=grid, tickMinStep=1)),
+                    color=alt.Color('Link:N', scale=alt.Scale(domain=link_order, range=[accent, teal]),
+                                    legend=alt.Legend(orient='top', title=None, labelColor=ink, symbolType='square', labelLimit=320)),
+                    order=alt.Order('Link:N', sort='descending'),
+                    tooltip=[alt.Tooltip('slot:T', title='Ate between', format='%a %d %b, %H:%M'),
+                             alt.Tooltip('Link:N', title='Group'), alt.Tooltip('Cases:Q', title='Sick cases')],
+                )
+                .properties(height=260)
+                .configure(background='transparent')
+                .configure_view(strokeWidth=0)
+            )
+            st.altair_chart(chart, use_container_width=True)
 
     with st.container(border=True):
         st.subheader("Top-3 ranked suspected sources (Bayesian engine)")
