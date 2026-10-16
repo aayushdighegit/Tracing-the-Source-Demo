@@ -1,11 +1,12 @@
 [theme]
 base = "dark"
-primaryColor = "#e01b1b"
-backgroundColor = "#070707"
-secondaryBackgroundColor = "#140808"
-textColor = "#e8e2d9"
-borderColor = "#4a1111"
+primaryColor = "#d0645c"
+backgroundColor = "#16171b"
+secondaryBackgroundColor = "#1f2126"
+textColor = "#e7e3dc"
+borderColor = "#33353c"
 baseRadius = "none"
+baseFontSize = 16
 
 [browser]
 gatherUsageStats = false

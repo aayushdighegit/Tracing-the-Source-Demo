@@ -11,141 +11,161 @@ from generate_data import generate_seeded_outbreak_data
 
 st.set_page_config(layout="wide", page_title="Tracing the Source | Outbreak Intelligence")
 
+# Table sizing: roomy rows, and a height that fits every row so tables never need a vertical scrollbar
+TABLE_ROW_H = 40
+def fit_height(n_rows):
+    return (n_rows + 1) * TABLE_ROW_H + 4
+
 # UI THEME — Plague Inc palette with Cyberpunk-style controls (presentation only, no data logic)
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 :root {
-    --red: #e01b1b; --red-hot: #ff2d2d; --red-dim: #4a1111; --panel: #0f0606; --ink: #070707;
-    --text: #e8e2d9; --muted: #9a8f86; --amber: #f2a516; --cyan: #19e3ef;
-    --cut: 12px;
+    --bg: #16171b; --panel: #1f2126; --panel-2: #24262c; --line: #33353c;
+    --red: #d0645c; --red-soft: rgba(208,100,92,0.14); --red-line: rgba(208,100,92,0.45);
+    --text: #e7e3dc; --muted: #b3ada5; --amber: #d6a756; --teal: #7cc4c0;
+    --cut: 10px;
 }
 
-/* Base */
-.stApp { background: radial-gradient(ellipse at 75% -10%, rgba(224,27,27,0.16), transparent 50%), var(--ink); }
+/* Base: calm charcoal, readable body text */
+.stApp { background: var(--bg); }
 [data-testid="stHeader"] { background: transparent; }
-.block-container { padding-top: 1.6rem; max-width: 1400px; }
-.stMain h1, .stMain h2, .stMain h3, .stMain h4, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
-    font-family: 'Oswald', sans-serif !important; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600 !important;
+.block-container { padding: 1.6rem 2rem 3rem 2rem; max-width: 1500px; }
+[data-testid="stSidebar"][aria-expanded="true"] { min-width: 290px !important; max-width: 290px !important; }
+.stApp, .stApp p, .stApp li, .stApp label, .stApp input { font-family: 'Inter', sans-serif; }
+.stMain p, .stMain li { font-size: 1rem; line-height: 1.6; }
+.stMain h1, .stMain h2, .stMain h3, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+    font-family: 'Oswald', sans-serif !important; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500 !important;
 }
-.stMain h3 { font-size: 1.1rem !important; color: #fff; padding-bottom: 8px; border-bottom: 1px solid var(--red-dim); margin-bottom: 4px; }
-.stMain h3::before { content: ""; display: inline-block; width: 8px; height: 8px; background: var(--red); margin: 0 10px 2px 0; }
-.stMain h4 { font-size: 0.95rem !important; color: var(--muted); }
-[data-testid="stCaptionContainer"] p { color: var(--muted); }
-.stMain code { background: rgba(224,27,27,0.12); color: #ff7a7a; }
+.stMain h3 { font-size: 1.2rem !important; color: var(--text); padding: 0 0 6px 0 !important; margin-bottom: 2px; }
+.stMain h3::before { content: ""; display: inline-block; width: 4px; height: 0.9em; background: var(--red); margin: 0 10px -1px 0; }
+.stMain h4 { font-family: 'Inter', sans-serif !important; font-size: 1rem !important; font-weight: 600 !important; color: var(--text); }
+[data-testid="stCaptionContainer"] p { color: var(--muted); font-size: 0.92rem; }
+.stMain code { background: var(--red-soft); color: #f0b3ad; }
+.stMain [data-testid="stVerticalBlock"] { gap: 1.1rem; }
 
 /* Sidebar */
-[data-testid="stSidebar"] { background: linear-gradient(180deg, #110404 0%, var(--ink) 60%); border-right: 1px solid var(--red-dim); }
-[data-testid="stSidebar"] h2 { font-size: 1.05rem !important; color: #fff; }
-[data-testid="stSidebar"] h3 { font-size: 0.9rem !important; color: var(--red-hot); }
-[data-testid="stSidebar"] [data-testid="stForm"] { border: 1px solid var(--red-dim); background: rgba(0,0,0,0.4); }
-.log { font-family: 'Share Tech Mono', monospace; font-size: 0.82rem; color: var(--muted); line-height: 1.8; }
-.log b { color: var(--text); font-weight: 400; float: right; }
+[data-testid="stSidebar"] { background: #1a1b20; border-right: 1px solid var(--line); }
+[data-testid="stSidebar"] h2 { font-size: 1.05rem !important; color: var(--text); }
+[data-testid="stSidebar"] h3 { font-size: 0.95rem !important; color: var(--red); }
+[data-testid="stSidebar"] [data-testid="stForm"] { border: 1px solid var(--line); background: var(--panel); }
+.log { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--muted); line-height: 2; }
+.log b { color: var(--text); font-weight: 500; float: right; }
 
 /* Title bar */
 .titlebar {
-    position: relative; overflow: hidden; padding: 22px 28px; margin-bottom: 14px;
-    background: linear-gradient(90deg, rgba(110,12,12,0.9), rgba(15,6,6,0.95) 70%);
-    border: 1px solid var(--red-dim); border-left: 4px solid var(--red);
+    position: relative; overflow: hidden; padding: 22px 28px; margin-bottom: 16px;
+    background: linear-gradient(90deg, rgba(208,100,92,0.16), var(--panel) 60%);
+    border: 1px solid var(--line); border-left: 4px solid var(--red);
 }
 .titlebar::after {
-    content: "☣"; position: absolute; right: 28px; top: 50%; transform: translateY(-50%);
-    font-size: 120px; line-height: 1; color: rgba(224,27,27,0.18);
+    content: "☣"; position: absolute; right: 30px; top: 50%; transform: translateY(-50%);
+    font-size: 110px; line-height: 1; color: rgba(208,100,92,0.12);
 }
-.titlebar .kicker { font-family: 'Share Tech Mono', monospace; color: var(--red-hot); font-size: 0.8rem; letter-spacing: 0.18em; }
-.titlebar h1 { font-size: 2rem !important; color: #fff; margin: 2px 0 4px 0 !important; padding: 0 !important; letter-spacing: 0.04em !important; }
-.titlebar p { color: var(--muted); margin: 0 0 12px 0; font-size: 0.95rem; }
-.tag { display: inline-block; font-family: 'Share Tech Mono', monospace; font-size: 0.78rem; color: var(--text);
-       border: 1px solid var(--red-dim); background: rgba(0,0,0,0.5); padding: 3px 10px; margin: 0 6px 4px 0; }
-.tag.live::before { content: "■"; color: var(--red-hot); margin-right: 6px; animation: blink 1.1s steps(2) infinite; }
-@keyframes blink { 50% { opacity: 0; } }
+.titlebar .kicker { font-family: 'JetBrains Mono', monospace; color: var(--red); font-size: 0.8rem; letter-spacing: 0.12em; }
+.titlebar h1 { font-size: 2rem !important; color: var(--text); margin: 4px 0 6px 0 !important; padding: 0 !important; }
+.titlebar p { color: var(--muted); margin: 0 0 14px 0; font-size: 1rem; }
+.tag { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text);
+       border: 1px solid var(--line); background: var(--bg); padding: 4px 10px; margin: 0 6px 4px 0; }
+.tag.live::before { content: "●"; color: var(--red); margin-right: 6px; }
 
-/* Cyberpunk navigation */
-.st-key-nav div[role="radiogroup"] { gap: 4px; }
+/* Cyberpunk navigation (soft) */
+.st-key-nav div[role="radiogroup"] { gap: 6px; }
 .st-key-nav div[role="radiogroup"] label {
-    margin: 0 !important; padding: 9px 26px 9px 20px; cursor: pointer; background: #140808;
+    margin: 0 !important; padding: 10px 28px 10px 20px; cursor: pointer; background: var(--panel);
     clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
-    border-bottom: 2px solid var(--red-dim); transition: background .12s;
+    border-bottom: 2px solid var(--line); transition: background .12s;
 }
 .st-key-nav div[role="radiogroup"] label > div > div:first-child:not([data-testid]) { display: none; }
-.st-key-nav div[role="radiogroup"] label p { font-family: 'Oswald', sans-serif; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); font-size: 0.9rem; }
-.st-key-nav div[role="radiogroup"] label:hover { background: #1f0a0a; }
+.st-key-nav div[role="radiogroup"] label p { font-family: 'Oswald', sans-serif; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-size: 0.95rem; }
+.st-key-nav div[role="radiogroup"] label:hover { background: var(--panel-2); }
 .st-key-nav div[role="radiogroup"] label:hover p { color: var(--text); }
-.st-key-nav div[role="radiogroup"] label[data-selected="true"] { background: var(--red); border-bottom-color: var(--cyan); }
-.st-key-nav div[role="radiogroup"] label[data-selected="true"] p { color: #0a0a0a; font-weight: 600; }
+.st-key-nav div[role="radiogroup"] label[data-selected="true"] { background: var(--red); border-bottom-color: var(--teal); }
+.st-key-nav div[role="radiogroup"] label[data-selected="true"] p { color: #1a1b20; font-weight: 600; }
 
-/* Cyberpunk buttons */
+/* Cyberpunk buttons (soft) */
 .stApp .stButton button, .stApp .stDownloadButton button, .stApp [data-testid="stFormSubmitButton"] button {
     position: relative; border: none; border-radius: 0; padding: 10px 30px 10px 20px; min-height: 0;
     clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
-    font-family: 'Oswald', sans-serif; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600;
-    background: var(--red); color: #0a0a0a; transition: background .12s, transform .08s;
+    background: var(--red); color: #1a1b20; transition: background .12s, transform .08s;
 }
-.stApp .stButton button p, .stApp .stDownloadButton button p, .stApp [data-testid="stFormSubmitButton"] button p { font-family: inherit; font-weight: 600; font-size: 0.88rem; }
+.stApp .stButton button p, .stApp .stDownloadButton button p, .stApp [data-testid="stFormSubmitButton"] button p {
+    font-family: 'Oswald', sans-serif; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; font-size: 0.92rem;
+}
 .stApp .stButton button::after, .stApp .stDownloadButton button::after, .stApp [data-testid="stFormSubmitButton"] button::after {
-    content: ""; position: absolute; right: 7px; bottom: 6px; width: 6px; height: 6px; background: #0a0a0a;
+    content: ""; position: absolute; right: 7px; bottom: 6px; width: 5px; height: 5px; background: #1a1b20;
 }
 .stApp .stButton button:hover, .stApp .stDownloadButton button:hover, .stApp [data-testid="stFormSubmitButton"] button:hover {
-    background: var(--red-hot); color: #0a0a0a; text-shadow: -1.5px 0 var(--cyan), 1.5px 0 rgba(0,0,0,0.6);
+    background: #dc7a72; color: #1a1b20;
 }
 .stApp .stButton button:active, .stApp .stDownloadButton button:active, .stApp [data-testid="stFormSubmitButton"] button:active { transform: translateY(1px); }
-.stApp .stButton button:focus-visible, .stApp .stDownloadButton button:focus-visible, .stApp [data-testid="stFormSubmitButton"] button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
-/* Secondary (sidebar form) button: dark body, red edge and corner */
+.stApp .stButton button:focus-visible, .stApp .stDownloadButton button:focus-visible, .stApp [data-testid="stFormSubmitButton"] button:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 [data-testid="stSidebar"] [data-testid="stFormSubmitButton"] button {
-    width: 100%; background: linear-gradient(225deg, var(--red) 0 15px, #1a0808 15px); color: var(--text);
+    width: 100%; background: linear-gradient(225deg, var(--red) 0 14px, var(--panel-2) 14px); color: var(--text);
     box-shadow: inset 3px 0 0 var(--red);
 }
 [data-testid="stSidebar"] [data-testid="stFormSubmitButton"] button::after { background: var(--red); }
-[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] button:hover { background: var(--red); color: #0a0a0a; }
+[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] button:hover { background: var(--red); color: #1a1b20; }
 
 /* KPI counters */
 .st-key-kpis [data-testid="stMetric"] {
-    background: var(--panel); border: 1px solid var(--red-dim); border-top: 2px solid var(--red);
-    padding: 14px 16px; min-height: 124px;
+    background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--red);
+    padding: 16px 18px; min-height: 128px;
 }
 .st-key-kpis [data-testid="stColumn"]:nth-child(3) [data-testid="stMetric"] { border-top-color: var(--amber); }
-[data-testid="stMetricLabel"] p { font-family: 'Oswald', sans-serif; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.78rem; color: var(--muted); white-space: normal; }
+.st-key-kpis [data-testid="stColumn"]:nth-child(5) [data-testid="stMetric"] { border-top-color: var(--teal); }
+[data-testid="stMetricLabel"] p { font-size: 0.85rem; font-weight: 500; color: var(--muted); white-space: normal; }
 [data-testid="stMetricLabel"] .stMarkdownEllipsis { white-space: normal; overflow: visible; }
 .stMain [data-testid="stMetricValue"], .stMain [data-testid="stMetricValue"] div {
-    font-family: 'Share Tech Mono', monospace; color: #fff; font-size: 1.9rem; overflow: visible; text-overflow: clip;
+    font-family: 'JetBrains Mono', monospace; color: var(--text); font-size: 1.9rem; font-weight: 500; overflow: visible; text-overflow: clip;
 }
-.st-key-kpis [data-testid="stColumn"]:nth-child(2) [data-testid="stMetricValue"] div { color: var(--red-hot); }
+.st-key-kpis [data-testid="stColumn"]:nth-child(2) [data-testid="stMetricValue"] div { color: var(--red); }
 
 /* Spread bars */
-.spread { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0 4px 0; }
-.spread .bar { flex: 1 1 280px; background: var(--panel); border: 1px solid var(--red-dim); padding: 10px 14px; }
-.spread .row { display: flex; justify-content: space-between; margin-bottom: 6px;
-               font-family: 'Oswald', sans-serif; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.78rem; color: var(--muted); }
-.spread .row b { font-family: 'Share Tech Mono', monospace; color: #fff; font-weight: 400; font-size: 0.95rem; }
-.spread .track { height: 8px; background: #1b0b0b; }
-.spread .fill { height: 100%; background: repeating-linear-gradient(90deg, var(--red) 0 10px, transparent 10px 12px); }
-.spread .fill.amber { background: repeating-linear-gradient(90deg, var(--amber) 0 10px, transparent 10px 12px); }
+.spread { display: flex; gap: 14px; flex-wrap: wrap; margin: 14px 0 4px 0; }
+.spread .bar { flex: 1 1 280px; background: var(--panel); border: 1px solid var(--line); padding: 12px 16px; }
+.spread .row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.88rem; color: var(--muted); }
+.spread .row b { font-family: 'JetBrains Mono', monospace; color: var(--text); font-weight: 500; }
+.spread .track { height: 8px; background: var(--bg); }
+.spread .fill { height: 100%; background: var(--red); }
+.spread .fill.amber { background: var(--amber); }
 
 /* Source identified */
 .source {
-    margin: 16px 0 8px 0; padding: 18px 22px; background: linear-gradient(90deg, rgba(110,12,12,0.55), var(--panel) 65%);
-    border: 1px solid var(--red); border-left: 5px solid var(--red);
+    margin: 18px 0 10px 0; padding: 20px 24px; background: linear-gradient(90deg, var(--red-soft), var(--panel) 65%);
+    border: 1px solid var(--red-line); border-left: 4px solid var(--red);
 }
-.source .kicker { font-family: 'Share Tech Mono', monospace; color: var(--red-hot); font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; }
-.source .batch { font-family: 'Share Tech Mono', monospace; font-size: 1.6rem; color: #fff; margin: 4px 0 12px 0; }
-.source .grid { display: flex; flex-wrap: wrap; gap: 30px; }
-.source .k { font-family: 'Oswald', sans-serif; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.72rem; color: var(--muted); }
-.source .v { font-family: 'Share Tech Mono', monospace; font-size: 1.1rem; color: #fff; }
-.code { display: inline-block; margin-top: 14px; padding: 5px 12px; font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; }
-.code.rc1 { background: var(--red); color: #0a0a0a; }
-.code.rc2 { background: rgba(242,165,22,0.15); color: var(--amber); border: 1px solid var(--amber); }
-.code.rc3 { background: rgba(154,143,134,0.12); color: var(--muted); border: 1px solid var(--muted); }
+.source .kicker { font-family: 'JetBrains Mono', monospace; color: var(--red); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.source .batch { font-family: 'JetBrains Mono', monospace; font-size: 1.55rem; color: var(--text); margin: 6px 0 14px 0; }
+.source .grid { display: flex; flex-wrap: wrap; gap: 34px; }
+.source .k { font-size: 0.8rem; color: var(--muted); margin-bottom: 2px; }
+.source .v { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; color: var(--text); }
+.code { display: inline-block; margin-top: 16px; padding: 6px 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; }
+.code.rc1 { background: var(--red-soft); color: #f0b3ad; border: 1px solid var(--red-line); }
+.code.rc2 { background: rgba(214,167,86,0.12); color: var(--amber); border: 1px solid rgba(214,167,86,0.45); }
+.code.rc3 { background: rgba(179,173,165,0.10); color: var(--muted); border: 1px solid var(--line); }
 
 /* Panels, alerts, expander, tables */
-.stMain [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]) { background: var(--panel); }
+.stMain [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]) { background: var(--panel); padding: 6px 8px; }
 .stMain [data-testid="stExpander"] details { background: var(--panel); }
-.stMain [data-testid="stExpander"] summary p { font-family: 'Oswald', sans-serif; text-transform: uppercase; letter-spacing: 0.08em; }
-.stMain [data-testid="stAlertContainer"] { border-left: 3px solid currentColor; }
-.stMain [data-testid="stDataFrame"] { border: 1px solid var(--red-dim); }
+.stMain [data-testid="stExpander"] summary p { font-weight: 600; }
+.stMain [data-testid="stDataFrame"] { border: 1px solid var(--line); }
+
+/* Wrapping table (Top-3) */
+.wrap-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; border: 1px solid var(--line); }
+.wrap-table th { text-align: left; font-weight: 500; color: var(--muted); background: var(--panel-2); padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 0.88rem; }
+.wrap-table td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: middle; color: var(--text); line-height: 1.45; }
+.wrap-table tr:last-child td { border-bottom: none; }
+.wrap-table.top3 tbody tr:first-child td { background: var(--red-soft); }
+.wrap-table .num { text-align: right; font-family: 'JetBrains Mono', monospace; }
+.wrap-table .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; }
+.wrap-table .risk { min-width: 110px; }
+.wrap-table .risk-track { height: 6px; background: var(--bg); margin-top: 6px; }
+.wrap-table .risk-fill { height: 100%; background: var(--red); }
 
 /* Graph legend */
-.legend { display: flex; flex-wrap: wrap; gap: 18px; font-family: 'Share Tech Mono', monospace; font-size: 0.82rem; color: var(--muted); margin: 4px 0 10px 0; }
-.legend i { display: inline-block; width: 10px; height: 10px; margin-right: 7px; vertical-align: -1px; }
+.legend { display: flex; flex-wrap: wrap; gap: 20px; font-size: 0.92rem; color: var(--muted); margin: 4px 0 12px 0; }
+.legend i { display: inline-block; width: 10px; height: 10px; margin-right: 8px; vertical-align: -1px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -355,34 +375,39 @@ if view_option == "Main Dashboard":
 </div>
 """, unsafe_allow_html=True)
 
-    col1, col2 = st.columns([1, 1.35])
+    with st.container(border=True):
+        st.subheader("Top-3 Ranked Suspected Sources (Bayesian Engine)")
+        st.caption("Separates true common exposures from popular foods, 5% background illness, and 10% wrong recall.")
+        # Rendered as a wrapping table so the long reason codes never need a horizontal scrollbar
+        top3_rows = "".join(
+            f"<tr><td class='mono'>{html.escape(str(r['Rank']))}</td>"
+            f"<td class='mono'>{html.escape(str(r['Batch']))}</td>"
+            f"<td>{html.escape(str(r['Wholesaler']))}</td>"
+            f"<td><div class='risk'><span class='mono'>{r['Risk Score (%)']:.1f}%</span>"
+            f"<div class='risk-track'><div class='risk-fill' style='width:{min(max(r['Risk Score (%)'], 0), 100):.1f}%'></div></div></div></td>"
+            f"<td class='num'>{r['Sick']}</td><td class='num'>{r['Healthy']}</td><td class='num'>{r['Wards Hit']}</td>"
+            f"<td>{html.escape(str(r['Reason Code']))}</td></tr>"
+            for _, r in top_3_suspects.iterrows()
+        )
+        st.markdown(f"""
+<table class="wrap-table top3">
+  <thead><tr><th>Rank</th><th>Batch</th><th>Wholesaler</th><th title="Laplace Smoothed Posterior Probability">Bayesian Risk</th>
+  <th class="num">Sick</th><th class="num">Healthy</th><th class="num">Wards Hit</th><th>Reason Code</th></tr></thead>
+  <tbody>{top3_rows}</tbody>
+</table>
+""", unsafe_allow_html=True)
 
-    with col1.container(border=True):
+    with st.container(border=True):
         st.subheader("Simple Baseline (Raw Case Count & Co-occurrence)")
         st.caption("Fails by flagging popular foods eaten by everyone.")
         naive_df = sick_patients.merge(df_vendors, left_on='reported_vendor', right_on='vendor_id')
         naive_counts = naive_df['batch_received'].value_counts().reset_index()
         naive_counts.columns = ['Batch', 'Raw Sick Co-occurrence']
-        st.dataframe(naive_counts, use_container_width=True, hide_index=True)
-        st.error("**Baseline Failure:** Flags `BATCH-WT-01 (Bottled Water)` as #1 because 100% of vendors stock it (50 sick eaters, even though hundreds of healthy people also drank it).")
-
-    with col2.container(border=True):
-        st.subheader("Top-3 Ranked Suspected Sources (Bayesian Engine)")
-        st.caption("Separates true common exposures from popular foods, 5% background illness, and 10% wrong recall.")
-        st.dataframe(
-            top_3_suspects[['Rank', 'Batch', 'Wholesaler', 'Risk Score (%)', 'Sick', 'Healthy', 'Wards Hit', 'Reason Code']],
-            column_config={
-                "Risk Score (%)": st.column_config.ProgressColumn(
-                    "Bayesian Risk",
-                    help="Laplace Smoothed Posterior Probability",
-                    format="%.1f%%",
-                    min_value=0,
-                    max_value=100,
-                )
-            },
-            use_container_width=True,
-            hide_index=True
-        )
+        base_tbl, base_note = st.columns([1, 1], gap="large")
+        with base_tbl:
+            st.dataframe(naive_counts, width="stretch", height=fit_height(len(naive_counts)), row_height=TABLE_ROW_H, hide_index=True)
+        with base_note:
+            st.error("**Baseline Failure:** Flags `BATCH-WT-01 (Bottled Water)` as #1 because 100% of vendors stock it (50 sick eaters, even though hundreds of healthy people also drank it).")
 
     # RUBRIC: EARLY DETECTION ACROSS DAYS (Proving Detection Before All Cases Arrive)
     with st.expander("Early Detection Proof (Day 1 vs Day 2 vs Day 3 Trajectory & Mathematical Model)"):
@@ -399,7 +424,14 @@ if view_option == "Main Dashboard":
                 'Healthy Controls Used': top_d['Healthy'],
                 'Beats Raw Count Baseline?': "✅ YES (Isolates Buckwheat over Water)"
             })
-        st.dataframe(pd.DataFrame(day_progression), use_container_width=True, hide_index=True)
+        # Rendered as a wrapping table so it fits laptop screens without a horizontal scrollbar
+        day_df = pd.DataFrame(day_progression)
+        day_head = "".join(f"<th>{html.escape(c)}</th>" for c in day_df.columns)
+        day_body = "".join(
+            "<tr>" + "".join(f"<td>{html.escape(str(v))}</td>" for v in row) + "</tr>"
+            for row in day_df.itertuples(index=False)
+        )
+        st.markdown(f'<table class="wrap-table"><thead><tr>{day_head}</tr></thead><tbody>{day_body}</tbody></table>', unsafe_allow_html=True)
 
         st.markdown("#### 2. Underlying Bayesian Laplace Math & Automated Temporal Test (`pytest`)")
         st.latex(r"P(\text{Risk} \mid \text{Batch}) = \frac{\text{Confirmed Sick Descendants} + 1}{\text{Total Exposed (Sick + Healthy Controls)} + 2}")
@@ -412,9 +444,7 @@ if view_option == "Main Dashboard":
     st.divider()
 
     # RUBRIC: TARGETED RECALL LIST (NOT A BROAD ONE) + EVIDENCE TRAIL FOR EACH RANKING
-    col_rec, col_ev = st.columns(2)
-
-    with col_rec.container(border=True):
+    with st.container(border=True):
         st.subheader("Targeted Recall & Vendor Investigation List")
         st.caption("Targets ONLY vendors linked to the Top-1 contaminated batch—sparing innocent businesses.")
         targeted_vendors = df_vendors[df_vendors['batch_received'] == prime_suspect].copy()
@@ -429,9 +459,13 @@ if view_option == "Main Dashboard":
             value=f"{len(targeted_list)} Vendors Quarantined",
             delta="50 Innocent Vendors Spared (66.7% Disruption Saved)"
         )
+        recall_rows = targeted_list[['vendor_id', 'ward', 'batch_received', 'Confirmed Sick', 'Action']].head(8)
         st.dataframe(
-            targeted_list[['vendor_id', 'ward', 'batch_received', 'Confirmed Sick', 'Action']].head(8),
-            use_container_width=True,
+            recall_rows,
+            column_config={"Confirmed Sick": st.column_config.NumberColumn(width=130)},
+            width="stretch",
+            height=fit_height(len(recall_rows)),
+            row_height=TABLE_ROW_H,
             hide_index=True
         )
 
@@ -455,7 +489,7 @@ TARGETED VENDOR QUARANTINE LIST:
             mime="text/plain"
         )
 
-    with col_ev.container(border=True):
+    with st.container(border=True):
         st.subheader("Per-Ranking Evidence Trail Inspector")
         st.caption("Select ANY ranked batch to inspect its full Patient → Vendor → Ward → Consumption Time → Wholesaler trail.")
         selected_evidence_batch = st.selectbox("Inspect Evidence Trail For Ranking:", df_scores['Batch'].tolist())
@@ -465,9 +499,16 @@ TARGETED VENDOR QUARANTINE LIST:
         trace_df = sick_patients.merge(df_vendors, left_on='reported_vendor', right_on='vendor_id')
         trace_df = trace_df[trace_df['batch_received'] == selected_evidence_batch].merge(df_batches, left_on='batch_received', right_on='batch_id')
         cols_to_show = ['patient_id', 'consumption_time', 'report_day', 'is_late_report', 'reported_vendor', 'ward', 'supplier']
+        trail_rows = trace_df[cols_to_show].sort_values(by='consumption_time', ascending=False).head(10)
         st.dataframe(
-            trace_df[cols_to_show].sort_values(by='consumption_time', ascending=False).head(10),
-            use_container_width=True,
+            trail_rows,
+            column_config={
+                "report_day": st.column_config.NumberColumn(width=100),
+                "is_late_report": st.column_config.CheckboxColumn(width=120),
+            },
+            width="stretch",
+            height=fit_height(len(trail_rows)),
+            row_height=TABLE_ROW_H,
             hide_index=True
         )
 
@@ -489,7 +530,7 @@ elif view_option == "Geographic Map":
             data=map_df,
             get_position='[lon, lat]',
             get_radius='radius',
-            get_fill_color='[255, 75, 75, 190]',
+            get_fill_color='[214, 106, 98, 170]',
             pickable=True,
             auto_highlight=True
         )
@@ -525,7 +566,7 @@ elif view_option == "Supply Chain Graph":
         horizontal=True
     )
 
-    net = Network(height='550px', width='100%', bgcolor='#0f0606', font_color='white', directed=True)
+    net = Network(height='550px', width='100%', bgcolor='#1f2126', font_color='white', directed=True)
     net.repulsion(node_distance=200, central_gravity=0.1, spring_length=200, spring_strength=0.05, damping=0.95)
 
     all_batches = df_batches['batch_id'].tolist()
@@ -555,7 +596,7 @@ elif view_option == "Supply Chain Graph":
     added_nodes = set(net.get_nodes())
     for u, v in G.edges():
         if u in added_nodes and v in added_nodes:
-            net.add_edge(u, v, color='#4a2222')
+            net.add_edge(u, v, color='#3d4048')
 
     net.save_graph('pyvis_graph.html')
     with open('pyvis_graph.html', 'r', encoding='utf-8') as HtmlFile:
