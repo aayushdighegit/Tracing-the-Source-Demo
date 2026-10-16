@@ -172,8 +172,28 @@ a.cp-btn.ghost:hover, [data-testid="stSidebar"] [data-testid="stFormSubmitButton
 
 /* Wrapping tables */
 .wrap-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; border: 1px solid var(--line); }
-.wrap-table th { text-align: left; font-weight: 500; color: var(--muted); background: var(--panel-2); padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 0.88rem; }
-.wrap-table td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: middle; color: var(--text); line-height: 1.45; }
+.wrap-table { border-top: 2px solid var(--accent); }
+.wrap-table th { text-align: left; font-family: var(--mono); font-weight: 500; font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent); background: var(--panel-2); padding: 11px 12px; border-bottom: 1px solid var(--accent-line); white-space: normal; vertical-align: bottom; }
+.wrap-table td { padding: 13px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; color: var(--text); line-height: 1.45; }
+.wrap-table tbody tr:nth-child(even) td { background: rgba(255,255,255,0.025); }
+html[data-mode="light"] .wrap-table tbody tr:nth-child(even) td { background: rgba(60,45,20,0.03); }
+.wrap-table td:first-child { font-weight: 600; }
+.wrap-table td.food { color: var(--muted); }
+.wrap-table.top3 th, .wrap-table.top3 td { padding-left: 10px; padding-right: 10px; }
+.wrap-table.top3 td:last-child { min-width: 195px; }
+.wrap-table.top3 td:nth-child(2) { min-width: 115px; }
+.wrap-table.top3 th { white-space: normal; }
+.rank-chip { display: inline-block; min-width: 34px; text-align: center; font-family: var(--mono); font-weight: 600; font-size: 0.85rem; padding: 3px 8px;
+    color: #1a1b20; background: var(--teal); clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%); }
+.rank-chip.first { background: var(--accent); box-shadow: 0 0 12px rgba(217,164,65,0.45); }
+.reason-tag { display: inline-block; padding: 4px 9px; font-family: var(--mono); font-size: 0.78rem; line-height: 1.4; border: 1px solid var(--line); color: var(--muted); }
+.reason-tag.rc1 { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); }
+.reason-tag.rc2 { color: var(--teal); border-color: var(--teal-line); background: var(--teal-soft); }
+
+/* Interactive tables: themed frame */
+.stMain [data-testid="stDataFrame"] { border: 1px solid var(--line) !important; border-top: 2px solid var(--accent) !important; box-shadow: 0 8px 24px rgba(0,0,0,0.18); }
+html[data-mode="light"] .stMain [data-testid="stDataFrame"] { box-shadow: 0 8px 20px rgba(90,70,30,0.08); }
 .wrap-table tr:last-child td { border-bottom: none; }
 .wrap-table.top3 tbody tr:first-child td { background: var(--accent-soft); }
 .wrap-table .num { text-align: right; font-family: var(--mono); }
@@ -348,6 +368,63 @@ html.tc-cursor-on input[type="text"], html.tc-cursor-on textarea { cursor: text 
 .stApp .stButton button, .stApp .stDownloadButton button, .stApp [data-testid="stFormSubmitButton"] button, a.cp-btn { transition: background .12s, transform .18s cubic-bezier(.2,.9,.3,1.4); }
 .stApp .stButton button:hover, .stApp .stDownloadButton button:hover, .stApp [data-testid="stFormSubmitButton"] button:hover, a.cp-btn:hover { transform: translateY(-3px) scale(1.05); }
 .stApp .stButton button:active, .stApp .stDownloadButton button:active, .stApp [data-testid="stFormSubmitButton"] button:active, a.cp-btn:active { transform: translateY(0) scale(0.97); }
+/* Runner-up suspects (#2, #3) */
+.runner-label { font-size: 0.85rem; color: var(--muted); margin: -4px 0 8px 2px; }
+.runners { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.runner { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--teal); padding: 14px 18px; animation: rise .55s .12s ease-out both;
+          backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+.runner:hover { transform: translateY(-3px); border-color: var(--teal-line); box-shadow: 0 0 22px rgba(124,196,192,0.15); }
+.runner-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.runner .rk { font-family: var(--mono); font-weight: 600; color: #1a1b20; background: var(--teal); padding: 2px 10px; clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%); }
+.runner .rscore { font-family: var(--mono); font-size: 0.85rem; color: var(--teal); }
+.runner .rbatch { font-size: 1.15rem; font-weight: 600; color: var(--text); }
+.runner .rsub { font-size: 0.88rem; color: var(--muted); margin-bottom: 10px; }
+.runner .track { height: 6px; background: var(--bg); margin-bottom: 10px; }
+.runner .fill { height: 100%; background: var(--teal); transform-origin: left; animation: fill-in 1.1s .5s cubic-bezier(.2,.8,.2,1) both; }
+.runner .rstats { display: flex; flex-wrap: wrap; gap: 6px 16px; font-family: var(--mono); font-size: 0.82rem; color: var(--text); }
+.runner .code { margin-top: 10px; font-size: 0.8rem; }
+@media (max-width: 900px) { .runners { grid-template-columns: 1fr; } }
+
+/* ===== Light mode (set by the theme toggle; html[data-mode] comes from the page script) ===== */
+html[data-mode="light"] {
+    --bg: #f5f1e8; --panel: rgba(255,255,255,0.74); --panel-2: rgba(255,255,255,0.9); --line: #d9d0bf;
+    --accent: #b07a16; --accent-soft: rgba(176,122,22,0.12); --accent-line: rgba(176,122,22,0.45);
+    --text: #26231e; --muted: #6d665c; --teal: #2c8c86; --teal-soft: rgba(44,140,134,0.12); --teal-line: rgba(44,140,134,0.45);
+}
+html[data-mode="light"] .stApp { background-color: #f5f1e8; }
+html[data-mode="light"] .stApp::before { opacity: 0.38; }
+html[data-mode="light"] [data-testid="stAppViewContainer"]::before {
+    background:
+        radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(120,95,55,0.14) 100%),
+        linear-gradient(rgba(60,45,20,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(60,45,20,0.07) 1px, transparent 1px),
+        linear-gradient(rgba(60,45,20,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(60,45,20,0.035) 1px, transparent 1px);
+    background-size: 100% 100%, 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+}
+html[data-mode="light"] [data-testid="stAppViewContainer"]::after { opacity: 0.55; }
+html[data-mode="light"] [data-testid="stSidebar"] { background: rgba(250,247,240,0.82) !important; }
+html[data-mode="light"] .st-key-nav { background: rgba(245,241,232,0.88) !important; }
+html[data-mode="light"] .stMain code, html[data-mode="light"] .code.rc1 { color: #7d5409; }
+html[data-mode="light"] .kpi .s.down { color: #b0503c; }
+html[data-mode="light"] .stApp .stButton button:hover, html[data-mode="light"] .stApp .stDownloadButton button:hover,
+html[data-mode="light"] .stApp [data-testid="stFormSubmitButton"] button:hover, html[data-mode="light"] a.cp-btn:hover { background: #c58d24; }
+html[data-mode="light"] .hero { box-shadow: 0 10px 34px rgba(90,70,30,0.12), 0 0 0 1px rgba(176,122,22,0.10) inset; }
+html[data-mode="light"] .kpi { box-shadow: 0 6px 20px rgba(90,70,30,0.08); }
+html[data-mode="light"] .kpi:hover { box-shadow: 0 14px 30px rgba(90,70,30,0.16), 0 0 22px rgba(176,122,22,0.16); }
+
+/* Theme toggle button (status bar) */
+.mode-toggle {
+    position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 6px 22px 6px 14px; border: 1px solid var(--accent-line);
+    background: var(--accent-soft); color: var(--text); font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase;
+    clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%); transition: background .15s, color .15s, transform .15s;
+}
+.mode-toggle:hover { background: var(--accent); color: #1a1b20; transform: translateY(-2px); }
+.mode-toggle svg { width: 15px; height: 15px; }
+.mode-toggle .to-dark { display: none; }
+html[data-mode="light"] .mode-toggle .to-light { display: none; }
+html[data-mode="light"] .mode-toggle .to-dark { display: inline-flex; }
+.mode-toggle span { display: inline-flex; align-items: center; gap: 8px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -417,9 +494,12 @@ st.sidebar.markdown(f"""
 Raw reports ingested <b>{total_raw_records}</b><br>
 Duplicate logs removed <b>{duplicates_removed}</b><br>
 Missing / incomplete cleaned <b>{missing_removed}</b><br>
+Late reports (all days) <b>{int(cleaned_patients['is_late_report'].sum())}</b><br>
+Wrong-recall reports (simulated) <b>{int(cleaned_patients['noisy_recall'].sum())}</b><br>
 Seeded reproducibility <b>seed=42</b>
 </div>
 """, unsafe_allow_html=True)
+st.sidebar.caption("Wrong-recall reports stay in the data on purpose: healthy controls and Laplace smoothing dilute them instead of letting them flip the ranking.")
 
 # 3. CORE ENGINE FUNCTION (Encapsulated so we can verify temporal integrity)
 def run_bayesian_traceback(patients_df, vendors_df, batches_df, max_day):
@@ -496,12 +576,17 @@ top_1_suspect = df_scores.iloc[0] if not df_scores.empty else None
 top_3_suspects = df_scores.head(3)
 prime_suspect = top_1_suspect['Batch'] if top_1_suspect is not None else None
 
+# Display helpers (UI only)
+FOOD_BY_BATCH = df_batches.set_index('batch_id')['food_item'].to_dict() if 'food_item' in df_batches.columns else {}
+THEME_TYPE = (st.context.theme.type or "dark") if hasattr(st.context, "theme") else "dark"
+
 # HEADER & 3-TAB HORIZONTAL RADIO MENU
 st.markdown(f"""
 <div class="statusbar">
   <div class="brand">
     <div><div class="name">Tracing the Source</div><div class="area">Thane · Kalyan · Dombivli outbreak console</div></div></div>
-  <div class="status"><span class="live">Live</span><span>Day {current_day} of 3</span></div>
+  <div class="status"><span class="live">Live</span><span>Day {current_day} of 3</span>
+    <button class="mode-toggle" type="button" title="Switch light / dark mode"><span class="to-light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg> Light</span><span class="to-dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg> Dark</span></button></div>
 </div>
 """, unsafe_allow_html=True)
 # Targeting cursor (UI only): an amber reticle that locks onto buttons and cards on hover
@@ -509,6 +594,25 @@ CURSOR_JS = r"""
 <script>
 (function () {
   const w = window.parent, d = w.document;
+  if (!d.getElementById('tc-theme-script')) {
+    const t = d.createElement('script');
+    t.id = 'tc-theme-script';
+    t.textContent = `(function () {
+      const KEY = 'stActiveTheme-' + location.pathname + '-v2';
+      let mode = null;
+      try { mode = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+      if (mode !== 'Light' && mode !== 'Dark') {  /* first visit (or 'System'): start in dark mode */
+        localStorage.setItem(KEY, JSON.stringify('Dark')); location.reload(); return;
+      }
+      document.documentElement.setAttribute('data-mode', mode.toLowerCase());
+      document.addEventListener('click', function (e) {
+        if (!e.target.closest || !e.target.closest('.mode-toggle')) return;
+        localStorage.setItem(KEY, JSON.stringify(mode === 'Dark' ? 'Light' : 'Dark'));
+        location.reload();
+      });
+    })();`;
+    d.head.appendChild(t);
+  }
   if (d.getElementById('tc-cursor-script') || w.matchMedia('(pointer: coarse)').matches) return;
   const s = d.createElement('script');
   s.id = 'tc-cursor-script';
@@ -521,7 +625,7 @@ CURSOR_JS = r"""
     d.body.appendChild(root);
     d.documentElement.classList.add('tc-cursor-on');
     const ring = root.querySelector('.tc-ring'), dot = root.querySelector('.tc-dot'), chev = root.querySelector('.tc-chev');
-    const LOCK = 'button, a.cp-btn, .st-key-nav label, [data-baseweb="select"], [role="slider"], .kpi, summary';
+    const LOCK = 'button, a.cp-btn, .st-key-nav label, [data-baseweb="select"], [role="slider"], .kpi, .runner, summary';
     let mx = -100, my = -100, rx = -100, ry = -100, rw = 34, rh = 34, target = null;
     function setTarget(t) { if (t === target) return; target = t; root.classList.toggle('lock', !!t); }
     d.addEventListener('mousemove', function (e) {
@@ -626,6 +730,15 @@ if view_option == "Main Dashboard":
     implicated_vendors = sick_patients['reported_vendor'].nunique()
     affected_wards = df_vendors[df_vendors['vendor_id'].isin(sick_patients['reported_vendor'])]['ward'].nunique()
     late_cases_count = int(available_reports['is_late_report'].sum())
+    total_vendors = df_vendors['vendor_id'].nunique()
+    total_wards = df_vendors['ward'].nunique()
+
+    def short_name(batch):
+        return batch.split('(')[-1].rstrip(')') if '(' in batch else batch
+
+    def raw_count_leader(sick_df):
+        counts = sick_df.merge(df_vendors, left_on='reported_vendor', right_on='vendor_id')['batch_received'].value_counts()
+        return (counts.index[0], int(counts.iloc[0])) if len(counts) else (None, 0)
 
     # RUBRIC: TOP-1 & TOP-3 LIST + EARLY DETECTION BANNER
     if top_1_suspect is not None:
@@ -635,11 +748,11 @@ if view_option == "Main Dashboard":
   <div class="hero-top"><span class="flag">Top-1 suspected source identified</span><span class="score">{top_1_suspect['Risk Score (%)']}% posterior risk</span></div>
   <div class="label">Day {current_day} early detection · before lab confirmation</div>
   <div class="batch">{html.escape(str(top_1_suspect['Batch']))}</div>
-  <div class="sub">Wholesaler <b>{html.escape(str(top_1_suspect['Wholesaler']))}</b></div>
+  <div class="sub">Wholesaler <b>{html.escape(str(top_1_suspect['Wholesaler']))}</b> · Food <b>{html.escape(str(FOOD_BY_BATCH.get(top_1_suspect['Batch'], '—')))}</b></div>
   <div class="stats">
     <div><div class="k">Relative risk vs. baseline</div><div class="v accent">{top_1_suspect['Relative Risk']}</div></div>
     <div><div class="k">Sick / healthy exposed</div><div class="v">{top_1_suspect['Sick']} / {top_1_suspect['Healthy']}</div></div>
-    <div><div class="k">Wards hit</div><div class="v">{top_1_suspect['Wards Hit']} of 24</div></div>
+    <div><div class="k">Wards hit</div><div class="v">{top_1_suspect['Wards Hit']} of {total_wards}</div></div>
   </div>
   <div class="code {rc_class}">{html.escape(str(top_1_suspect['Reason Code']))}</div>
   <div class="actions"><span class="cp-wrap"><a class="cp-btn" href="#recall">Targeted recall list</a></span><span class="cp-wrap"><a class="cp-btn ghost" href="#evidence">Evidence trail</a></span></div>
@@ -648,6 +761,21 @@ if view_option == "Main Dashboard":
 
     def pct(part, whole):
         return min(part / whole, 1) * 100 if whole else 0
+
+    runner_cards = ""
+    for _, r in top_3_suspects.iloc[1:3].iterrows():
+        r_class = "rc1" if r['Reason Code'].startswith("RC-01") else "rc2" if r['Reason Code'].startswith("RC-02") else "rc3"
+        runner_cards += f"""
+  <div class="runner">
+    <div class="runner-top"><span class="rk">{html.escape(str(r['Rank']))}</span><span class="rscore">{r['Risk Score (%)']}% risk</span></div>
+    <div class="rbatch">{html.escape(str(r['Batch']))}</div>
+    <div class="rsub">{html.escape(str(FOOD_BY_BATCH.get(r['Batch'], '—')))} · {html.escape(str(r['Wholesaler']))}</div>
+    <div class="track"><div class="fill" style="width:{min(max(r['Risk Score (%)'], 0), 100):.0f}%"></div></div>
+    <div class="rstats"><span>{r['Relative Risk']} vs. baseline</span><span>{r['Sick']} sick / {r['Healthy']} healthy</span><span>{r['Wards Hit']} wards</span></div>
+    <div class="code {r_class}">{html.escape(str(r['Reason Code']))}</div>
+  </div>"""
+    if runner_cards:
+        st.markdown(f'<div class="runner-label">Also ranked in the top 3</div><div class="runners">{runner_cards}</div>', unsafe_allow_html=True)
 
     st.markdown(f"""
 <div class="kpi-grid">
@@ -660,12 +788,12 @@ if view_option == "Main Dashboard":
   <div class="kpi"><div class="k">Late reports integrated</div><div class="v">{late_cases_count}</div>
     <div class="s">reported after the day of eating</div>
     <div class="track"><div class="fill second" style="width:{pct(late_cases_count, len(available_reports)):.0f}%"></div></div></div>
-  <div class="kpi"><div class="k">Implicated vendors</div><div class="v">{implicated_vendors} <small>/ 75</small></div>
+  <div class="kpi"><div class="k">Implicated vendors</div><div class="v">{implicated_vendors} <small>/ {total_vendors}</small></div>
     <div class="s">linked to a sick case</div>
-    <div class="track"><div class="fill" style="width:{pct(implicated_vendors, 75):.0f}%"></div></div></div>
-  <div class="kpi"><div class="k">City wards affected</div><div class="v">{affected_wards} <small>/ 24</small></div>
+    <div class="track"><div class="fill" style="width:{pct(implicated_vendors, total_vendors):.0f}%"></div></div></div>
+  <div class="kpi"><div class="k">City wards affected</div><div class="v">{affected_wards} <small>/ {total_wards}</small></div>
     <div class="s">with at least one sick case</div>
-    <div class="track"><div class="fill" style="width:{pct(affected_wards, 24):.0f}%"></div></div></div>
+    <div class="track"><div class="fill" style="width:{pct(affected_wards, total_wards):.0f}%"></div></div></div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -674,18 +802,19 @@ if view_option == "Main Dashboard":
         st.caption("Separates true common exposures from popular foods, 5% background illness, and 10% wrong recall.")
         # Rendered as a wrapping table so the long reason codes never need a horizontal scrollbar
         top3_rows = "".join(
-            f"<tr><td class='mono'>{html.escape(str(r['Rank']))}</td>"
+            f"<tr><td><span class='rank-chip {'first' if r['Rank'] == '#1' else ''}'>{html.escape(str(r['Rank']))}</span></td>"
             f"<td class='mono'>{html.escape(str(r['Batch']))}</td>"
+            f"<td class='food'>{html.escape(str(FOOD_BY_BATCH.get(r['Batch'], '—')))}</td>"
             f"<td>{html.escape(str(r['Wholesaler']))}</td>"
             f"<td><div class='risk'><span class='mono'>{r['Risk Score (%)']:.1f}%</span>"
             f"<div class='risk-track'><div class='risk-fill' style='width:{min(max(r['Risk Score (%)'], 0), 100):.1f}%'></div></div></div></td>"
             f"<td class='num'>{r['Sick']}</td><td class='num'>{r['Healthy']}</td><td class='num'>{r['Wards Hit']}</td>"
-            f"<td>{html.escape(str(r['Reason Code']))}</td></tr>"
+            f"<td><span class='reason-tag {'rc1' if r['Reason Code'].startswith('RC-01') else 'rc2' if r['Reason Code'].startswith('RC-02') else 'rc3'}'>{html.escape(str(r['Reason Code']))}</span></td></tr>"
             for _, r in top_3_suspects.iterrows()
         )
         st.markdown(f"""
 <table class="wrap-table top3">
-  <thead><tr><th>Rank</th><th>Batch</th><th>Wholesaler</th><th title="Laplace Smoothed Posterior Probability">Bayesian Risk</th>
+  <thead><tr><th>Rank</th><th>Batch</th><th>Food</th><th>Wholesaler</th><th title="Laplace Smoothed Posterior Probability">Bayesian Risk</th>
   <th class="num">Sick</th><th class="num">Healthy</th><th class="num">Wards Hit</th><th>Reason Code</th></tr></thead>
   <tbody>{top3_rows}</tbody>
 </table>
@@ -699,24 +828,47 @@ if view_option == "Main Dashboard":
         naive_counts.columns = ['Batch', 'Raw Sick Co-occurrence']
         base_tbl, base_note = st.columns([1, 1], gap="large")
         with base_tbl:
-            st.dataframe(naive_counts, width="stretch", height=fit_height(len(naive_counts)), row_height=TABLE_ROW_H, hide_index=True)
+            st.dataframe(
+                naive_counts,
+                column_config={
+                    "Batch": st.column_config.TextColumn("Batch"),
+                    "Raw Sick Co-occurrence": st.column_config.ProgressColumn(
+                        "Raw sick co-occurrence", format="%d", min_value=0,
+                        max_value=int(naive_counts['Raw Sick Co-occurrence'].max()) if len(naive_counts) else 1, width=190),
+                },
+                width="stretch", height=fit_height(len(naive_counts)), row_height=TABLE_ROW_H, hide_index=True
+            )
         with base_note:
-            st.error("**Baseline Failure:** Flags `BATCH-WT-01 (Bottled Water)` as #1 because 100% of vendors stock it (50 sick eaters, even though hundreds of healthy people also drank it).")
+            base_batch, base_sick = raw_count_leader(sick_patients)
+            if base_batch is None:
+                st.info("No confirmed sick cases yet, so the baseline has nothing to rank.")
+            elif base_batch != prime_suspect:
+                stock_share = df_vendors.loc[df_vendors['batch_received'] == base_batch, 'vendor_id'].nunique() / total_vendors
+                base_row = df_scores[df_scores['Batch'] == base_batch]
+                base_healthy = int(base_row['Healthy'].iloc[0]) if not base_row.empty else 0
+                st.error(f"**Baseline Failure:** Flags `{base_batch}` as #1 because {stock_share:.0%} of vendors stock it "
+                         f"({base_sick} sick eaters, even though {base_healthy} healthy people also had it). "
+                         f"The Bayesian engine ranks `{prime_suspect}` first instead.")
+            else:
+                st.info(f"The baseline agrees with the Bayesian engine on `{base_batch}` at this point in the outbreak.")
 
     # RUBRIC: EARLY DETECTION ACROSS DAYS (Proving Detection Before All Cases Arrive)
     with st.expander("Early detection proof (Day 1 vs Day 2 vs Day 3 trajectory & mathematical model)"):
         st.markdown("#### 1. Early source detection (before all cases or lab results arrive)")
         day_progression = []
         for d in [1, 2, 3]:
-            _, _, _, d_scores, _ = run_bayesian_traceback(cleaned_patients, df_vendors, df_batches, d)
+            _, d_sick, _, d_scores, _ = run_bayesian_traceback(cleaned_patients, df_vendors, df_batches, d)
             top_d = d_scores.iloc[0]
+            d_base, _ = raw_count_leader(d_sick)
             day_progression.append({
                 'Timeline': f"Day {d} ({'Early Onset - 25% Data' if d==1 else 'Mid Outbreak' if d==2 else 'Full Data'})",
                 'Top-1 Ranked Batch': top_d['Batch'],
                 'Bayesian Risk (%)': f"{top_d['Risk Score (%)']}%",
+                'Top-3 Ranking': " › ".join(f"{short_name(b)} {r}%" for b, r in zip(d_scores['Batch'].head(3), d_scores['Risk Score (%)'].head(3))),
                 'Confirmed Sick Cases Used': top_d['Sick'],
                 'Healthy Controls Used': top_d['Healthy'],
-                'Beats Raw Count Baseline?': "✅ YES (Isolates Buckwheat over Water)"
+                'Beats Raw Count Baseline?': (f"✅ YES (Isolates {short_name(top_d['Batch'])} over {short_name(d_base)})"
+                                              if d_base is not None and d_base != top_d['Batch'] else "Same pick as baseline")
             })
         # Rendered as a wrapping table so it fits laptop screens without a horizontal scrollbar
         day_df = pd.DataFrame(day_progression)
@@ -749,12 +901,20 @@ if view_option == "Main Dashboard":
         st.metric(
             label="Targeted Scope vs. Broad City-Wide Recall",
             value=f"{len(targeted_list)} Vendors Quarantined",
-            delta="50 Innocent Vendors Spared (66.7% Disruption Saved)"
+            delta=f"{total_vendors - len(targeted_list)} Innocent Vendors Spared ({(total_vendors - len(targeted_list)) / total_vendors:.1%} Disruption Saved)"
         )
         recall_rows = targeted_list[['vendor_id', 'ward', 'batch_received', 'Confirmed Sick', 'Action']].head(8)
         st.dataframe(
             recall_rows.assign(Action=recall_rows['Action'].str.replace(r'^\W+\s*', '', regex=True)),
-            column_config={"Confirmed Sick": st.column_config.NumberColumn(width=130)},
+            column_config={
+                "vendor_id": st.column_config.TextColumn("Vendor", width=100),
+                "ward": st.column_config.TextColumn("Ward"),
+                "batch_received": st.column_config.TextColumn("Batch"),
+                "Confirmed Sick": st.column_config.ProgressColumn(
+                    "Confirmed sick", format="%d", min_value=0,
+                    max_value=max(int(recall_rows['Confirmed Sick'].max()), 1) if len(recall_rows) else 1, width=150),
+                "Action": st.column_config.TextColumn("Action"),
+            },
             width="stretch",
             height=fit_height(len(recall_rows)),
             row_height=TABLE_ROW_H,
@@ -763,13 +923,13 @@ if view_option == "Main Dashboard":
 
         recall_doc = f"""========================================================
 OFFICIAL MUNICIPAL PUBLIC HEALTH TARGETED RECALL ORDER
-Region: Thane, Kalyan & Dombivli (24 Municipal Wards)
+Region: Thane, Kalyan & Dombivli ({total_wards} Municipal Wards)
 ========================================================
 TOP-1 SUSPECT BATCH: {top_1_suspect['Batch']}
 WHOLESALER SOURCE:   {top_1_suspect['Wholesaler']}
 BAYESIAN RISK SCORE: {top_1_suspect['Risk Score (%)']}% ({top_1_suspect['Relative Risk']})
 REASON CODE:         {top_1_suspect['Reason Code']}
-TARGETED SCOPE:      {len(targeted_list)} / 75 Vendors (50 Innocent Vendors Spared)
+TARGETED SCOPE:      {len(targeted_list)} / {total_vendors} Vendors ({total_vendors - len(targeted_list)} Innocent Vendors Spared)
 
 TARGETED VENDOR QUARANTINE LIST:
 {targeted_list[['vendor_id', 'ward', 'Confirmed Sick', 'Action']].to_string(index=False)}
@@ -786,7 +946,7 @@ TARGETED VENDOR QUARANTINE LIST:
         st.caption("Select ANY ranked batch to inspect its full Patient → Vendor → Ward → Consumption Time → Wholesaler trail.")
         selected_evidence_batch = st.selectbox("Inspect Evidence Trail For Ranking:", df_scores['Batch'].tolist())
         selected_row = df_scores[df_scores['Batch'] == selected_evidence_batch].iloc[0]
-        st.markdown(f"**Reason Code:** `{selected_row['Reason Code']}`")
+        st.markdown(f"**Reason Code:** `{selected_row['Reason Code']}` · **Food:** {FOOD_BY_BATCH.get(selected_evidence_batch, '—')}")
 
         trace_df = sick_patients.merge(df_vendors, left_on='reported_vendor', right_on='vendor_id')
         trace_df = trace_df[trace_df['batch_received'] == selected_evidence_batch].merge(df_batches, left_on='batch_received', right_on='batch_id')
@@ -795,8 +955,13 @@ TARGETED VENDOR QUARANTINE LIST:
         st.dataframe(
             trail_rows,
             column_config={
-                "report_day": st.column_config.NumberColumn(width=100),
-                "is_late_report": st.column_config.CheckboxColumn(width=120),
+                "patient_id": st.column_config.TextColumn("Patient", width=115),
+                "consumption_time": st.column_config.TextColumn("Ate at", width=140),
+                "report_day": st.column_config.NumberColumn("Reported", format="Day %d", width=95),
+                "is_late_report": st.column_config.CheckboxColumn("Late?", width=70),
+                "reported_vendor": st.column_config.TextColumn("Vendor", width=100),
+                "ward": st.column_config.TextColumn("Ward"),
+                "supplier": st.column_config.TextColumn("Wholesaler"),
             },
             width="stretch",
             height=fit_height(len(trail_rows)),
@@ -830,7 +995,7 @@ elif view_option == "Geographic Map":
         st.pydeck_chart(pdk.Deck(
             layers=[layer],
             initial_view_state=view_state,
-            map_style="dark",
+            map_style="light" if THEME_TYPE == "light" else "dark",
             tooltip={"text": "Vendor: {vendor_id}\nMunicipal Ward: {ward}\nConfirmed Sick Cases: {sick_cases}"}
         ))
     else:
@@ -858,7 +1023,7 @@ elif view_option == "Supply Chain Graph":
         horizontal=True
     )
 
-    net = Network(height='550px', width='100%', bgcolor='#1f2126', font_color='white', directed=True)
+    net = Network(height='550px', width='100%', bgcolor='#f5f1e8' if THEME_TYPE == 'light' else '#1f2126', font_color='#26231e' if THEME_TYPE == 'light' else 'white', directed=True)
     net.repulsion(node_distance=200, central_gravity=0.1, spring_length=200, spring_strength=0.05, damping=0.95)
 
     all_batches = df_batches['batch_id'].tolist()

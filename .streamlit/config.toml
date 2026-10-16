@@ -1,12 +1,26 @@
 [theme]
-base = "dark"
+baseRadius = "none"
+baseFontSize = 16
+
+[theme.dark]
 primaryColor = "#d9a441"
 backgroundColor = "#16171b"
 secondaryBackgroundColor = "#1f2126"
 textColor = "#e7e3dc"
 borderColor = "#33353c"
-baseRadius = "none"
-baseFontSize = 16
+dataframeHeaderBackgroundColor = "#26282e"
+dataframeHeaderTextColor = "#d9a441"
+dataframeBorderColor = "#2e3036"
+
+[theme.light]
+primaryColor = "#b07a16"
+backgroundColor = "#f5f1e8"
+secondaryBackgroundColor = "#ebe5d8"
+textColor = "#26231e"
+borderColor = "#d9d0bf"
+dataframeHeaderBackgroundColor = "#ece4d3"
+dataframeHeaderTextColor = "#7d5409"
+dataframeBorderColor = "#e3dbcb"
 
 [browser]
 gatherUsageStats = false

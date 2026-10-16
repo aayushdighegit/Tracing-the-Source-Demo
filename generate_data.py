@@ -11,8 +11,14 @@ def generate_seeded_outbreak_data(seed=42):
     # 1. WHOLESALERS & BATCHES (Food -> Vendor -> Wholesaler -> Batch)
     batches = [
         {'batch_id': 'BATCH-BW-07 (Buckwheat Flour)', 'food_item': 'Kuttu/Buckwheat Dish', 'supplier': 'Shree Agro Wholesale', 'is_planted_source': True},
+        # Same wholesaler as the planted batch: the batch must be traced, not just the wholesaler
+        {'batch_id': 'BATCH-SB-04 (Sabudana)', 'food_item': 'Sabudana Khichdi / Vada', 'supplier': 'Shree Agro Wholesale', 'is_planted_source': False},
         {'batch_id': 'BATCH-RC-02 (Basmati Rice)', 'food_item': 'Steamed Basmati Rice', 'supplier': 'Konkan Grains Co.', 'is_planted_source': False},
         {'batch_id': 'BATCH-FL-09 (Wheat Flour)', 'food_item': 'Tandoori Roti / Bread', 'supplier': 'MahaFoods Ltd.', 'is_planted_source': False},
+        {'batch_id': 'BATCH-PN-11 (Paneer)', 'food_item': 'Paneer Tikka / Curry', 'supplier': 'Thane Dairy Co.', 'is_planted_source': False},
+        {'batch_id': 'BATCH-MK-05 (Milk)', 'food_item': 'Masala Chai / Lassi', 'supplier': 'Thane Dairy Co.', 'is_planted_source': False},
+        {'batch_id': 'BATCH-OL-03 (Groundnut Oil)', 'food_item': 'Fried Snacks (Vada / Bhaji)', 'supplier': 'Konkan Oils Pvt.', 'is_planted_source': False},
+        {'batch_id': 'BATCH-PT-06 (Potatoes)', 'food_item': 'Aloo Sabzi / Fries', 'supplier': 'Vashi APMC Traders', 'is_planted_source': False},
         {'batch_id': 'BATCH-WT-01 (Bottled Water)', 'food_item': 'Mineral Water', 'supplier': 'AquaPure Beverage', 'is_planted_source': False}
     ]
     df_batches = pd.DataFrame(batches)
@@ -36,23 +42,30 @@ def generate_seeded_outbreak_data(seed=42):
             round(random.uniform(lon_min, lon_max), 5)
         )
 
+    # Each vendor's main dish batch (the planted batch reaches 20 of the 75 vendors)
     main_foods = (
-        ['BATCH-BW-07 (Buckwheat Flour)'] * 25 +
-        ['BATCH-RC-02 (Basmati Rice)'] * 25 +
-        ['BATCH-FL-09 (Wheat Flour)'] * 25
+        ['BATCH-BW-07 (Buckwheat Flour)'] * 20 +
+        ['BATCH-SB-04 (Sabudana)'] * 14 +
+        ['BATCH-RC-02 (Basmati Rice)'] * 14 +
+        ['BATCH-FL-09 (Wheat Flour)'] * 14 +
+        ['BATCH-PN-11 (Paneer)'] * 13
     )
     random.shuffle(main_foods)
+    # Plus one side item each, shared across vendors (these overlap with the planted batch's vendors)
+    side_foods = ['BATCH-MK-05 (Milk)', 'BATCH-OL-03 (Groundnut Oil)', 'BATCH-PT-06 (Potatoes)']
 
     vendors = []
+    vendor_main = {}
     ward_list = list(ward_coords.keys())
     for i in range(1, 76):
         ward = ward_list[i % 24]
         lat, lon = ward_coords[ward]
         v_id = f"Vendor_{i:02d}"
-        
-        # Every vendor stocks popular Bottled Water (Misleading Common Food) + 1 primary batch
-        vendors.append({'vendor_id': v_id, 'ward': ward, 'lat': lat, 'lon': lon, 'batch_received': 'BATCH-WT-01 (Bottled Water)'})
-        vendors.append({'vendor_id': v_id, 'ward': ward, 'lat': lat, 'lon': lon, 'batch_received': main_foods[i-1]})
+        vendor_main[v_id] = main_foods[i-1]
+
+        # Every vendor stocks popular Bottled Water (Misleading Common Food) + 1 main batch + 1 side batch
+        for batch in ['BATCH-WT-01 (Bottled Water)', main_foods[i-1], random.choice(side_foods)]:
+            vendors.append({'vendor_id': v_id, 'ward': ward, 'lat': lat, 'lon': lon, 'batch_received': batch})
 
     df_vendors = pd.DataFrame(vendors)
     df_vendors.to_csv('synthetic_vendors.csv', index=False)
@@ -63,8 +76,7 @@ def generate_seeded_outbreak_data(seed=42):
 
     for i in range(1, 421):
         true_vendor = f"Vendor_{random.randint(1, 75):02d}"
-        vendor_row = df_vendors[(df_vendors['vendor_id'] == true_vendor) & (df_vendors['batch_received'] != 'BATCH-WT-01 (Bottled Water)')]
-        primary_batch = vendor_row['batch_received'].iloc[0]
+        primary_batch = vendor_main[true_vendor]
 
         # Simulate outbreak vs. background unrelated illness (5% background rate)
         if primary_batch == 'BATCH-BW-07 (Buckwheat Flour)':

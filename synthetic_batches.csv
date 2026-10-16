@@ -1,5 +1,10 @@
 batch_id,food_item,supplier,is_planted_source
 BATCH-BW-07 (Buckwheat Flour),Kuttu/Buckwheat Dish,Shree Agro Wholesale,True
+BATCH-SB-04 (Sabudana),Sabudana Khichdi / Vada,Shree Agro Wholesale,False
 BATCH-RC-02 (Basmati Rice),Steamed Basmati Rice,Konkan Grains Co.,False
 BATCH-FL-09 (Wheat Flour),Tandoori Roti / Bread,MahaFoods Ltd.,False
+BATCH-PN-11 (Paneer),Paneer Tikka / Curry,Thane Dairy Co.,False
+BATCH-MK-05 (Milk),Masala Chai / Lassi,Thane Dairy Co.,False
+BATCH-OL-03 (Groundnut Oil),Fried Snacks (Vada / Bhaji),Konkan Oils Pvt.,False
+BATCH-PT-06 (Potatoes),Aloo Sabzi / Fries,Vashi APMC Traders,False
 BATCH-WT-01 (Bottled Water),Mineral Water,AquaPure Beverage,False
