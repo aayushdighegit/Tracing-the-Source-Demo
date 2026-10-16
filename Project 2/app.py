@@ -19,153 +19,335 @@ def fit_height(n_rows):
 # UI THEME — Plague Inc palette with Cyberpunk-style controls (presentation only, no data logic)
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 :root {
     --bg: #16171b; --panel: #1f2126; --panel-2: #24262c; --line: #33353c;
-    --red: #d0645c; --red-soft: rgba(208,100,92,0.14); --red-line: rgba(208,100,92,0.45);
-    --text: #e7e3dc; --muted: #b3ada5; --amber: #d6a756; --teal: #7cc4c0;
-    --cut: 10px;
+    --accent: #d9a441; --accent-soft: rgba(217,164,65,0.13); --accent-line: rgba(217,164,65,0.45);
+    --text: #e7e3dc; --muted: #b3ada5; --teal: #7cc4c0; --teal-soft: rgba(124,196,192,0.12); --teal-line: rgba(124,196,192,0.45);
+    --cut: 10px; --mono: 'JetBrains Mono', monospace;
 }
 
-/* Base: calm charcoal, readable body text */
-.stApp { background: var(--bg); }
-[data-testid="stHeader"] { background: transparent; }
-.block-container { padding: 1.6rem 2rem 3rem 2rem; max-width: 1500px; }
-[data-testid="stSidebar"][aria-expanded="true"] { min-width: 290px !important; max-width: 290px !important; }
-.stApp, .stApp p, .stApp li, .stApp label, .stApp input { font-family: 'Inter', sans-serif; }
-.stMain p, .stMain li { font-size: 1rem; line-height: 1.6; }
-.stMain h1, .stMain h2, .stMain h3, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
-    font-family: 'Oswald', sans-serif !important; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500 !important;
+/* Base: two fonts only — Inter for text, JetBrains Mono for numbers and IDs */
+/* Background: drifting amber/teal aurora, radar sweep, tactical grid, glass panels */
+.stApp { background-color: #101114; }
+.stApp::before {
+    content: ""; position: fixed; inset: -20%; z-index: 0; pointer-events: none;
+    background:
+        radial-gradient(circle at 20% 25%, rgba(217,164,65,0.55), transparent 32%),
+        radial-gradient(circle at 80% 15%, rgba(124,196,192,0.40), transparent 30%),
+        radial-gradient(circle at 70% 80%, rgba(184,116,42,0.50), transparent 34%),
+        radial-gradient(circle at 15% 85%, rgba(47,111,108,0.55), transparent 32%),
+        radial-gradient(circle at 50% 50%, rgba(217,164,65,0.18), transparent 45%);
+    filter: blur(70px) saturate(1.25); opacity: 0.85;
+    animation: aurora 26s ease-in-out infinite alternate;
 }
-.stMain h3 { font-size: 1.2rem !important; color: var(--text); padding: 0 0 6px 0 !important; margin-bottom: 2px; }
-.stMain h3::before { content: ""; display: inline-block; width: 4px; height: 0.9em; background: var(--red); margin: 0 10px -1px 0; }
-.stMain h4 { font-family: 'Inter', sans-serif !important; font-size: 1rem !important; font-weight: 600 !important; color: var(--text); }
+@keyframes aurora {
+    0%   { transform: translate(0, 0) rotate(0deg) scale(1); }
+    33%  { transform: translate(6%, -4%) rotate(8deg) scale(1.08); }
+    66%  { transform: translate(-5%, 5%) rotate(-6deg) scale(1.04); }
+    100% { transform: translate(3%, 3%) rotate(12deg) scale(1.12); }
+}
+[data-testid="stAppViewContainer"] { position: relative; z-index: 1; background: transparent !important; }
+[data-testid="stAppViewContainer"]::before {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+        radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(8,8,10,0.70) 100%),
+        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+    background-size: 100% 100%, 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+}
+[data-testid="stAppViewContainer"]::after {
+    content: ""; position: fixed; z-index: -1; pointer-events: none;
+    width: 160vmax; height: 160vmax; left: calc(60% - 80vmax); top: calc(35% - 80vmax);
+    background: conic-gradient(from 0deg, rgba(217,164,65,0.20), rgba(217,164,65,0.05) 18deg, transparent 60deg, transparent 360deg);
+    border-radius: 50%; animation: sweep 14s linear infinite;
+}
+@keyframes sweep { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .stApp::before, [data-testid="stAppViewContainer"]::after { animation: none; } }
+
+/* Glass panels so the colour shows through but text stays readable */
+:root { --panel: rgba(28,30,35,0.78); --panel-2: rgba(36,38,44,0.88); }
+.hero, .kpi, .stMain [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]),
+.stMain [data-testid="stExpander"] details, .wrap-table {
+    backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+.hero { box-shadow: 0 10px 40px rgba(0,0,0,0.35), 0 0 0 1px rgba(217,164,65,0.10) inset; }
+.kpi { box-shadow: 0 6px 24px rgba(0,0,0,0.25); }
+[data-testid="stSidebar"] {
+    background: rgba(18,19,23,0.72) !important; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+}
+.st-key-nav { background: rgba(16,17,20,0.78) !important; backdrop-filter: blur(14px); }
+[data-testid="stHeader"] { background: transparent; }
+.block-container { padding: 1.2rem 2rem 7rem 2rem; max-width: 1500px; }
+[data-testid="stSidebar"][aria-expanded="true"] { min-width: 290px !important; max-width: 290px !important; }
+.stApp, .stApp p, .stApp li, .stApp label, .stApp input, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp button { font-family: 'Inter', sans-serif; }
+.stMain p, .stMain li { font-size: 1rem; line-height: 1.6; }
+.stMain h3 { font-size: 1.15rem !important; font-weight: 600 !important; color: var(--text); padding: 0 0 4px 0 !important; letter-spacing: -0.01em; }
+.stMain h4 { font-size: 1rem !important; font-weight: 600 !important; color: var(--text); }
 [data-testid="stCaptionContainer"] p { color: var(--muted); font-size: 0.92rem; }
-.stMain code { background: var(--red-soft); color: #f0b3ad; }
+.stMain code { background: var(--accent-soft); color: #f0d29a; }
 .stMain [data-testid="stVerticalBlock"] { gap: 1.1rem; }
 
 /* Sidebar */
 [data-testid="stSidebar"] { background: #1a1b20; border-right: 1px solid var(--line); }
-[data-testid="stSidebar"] h2 { font-size: 1.05rem !important; color: var(--text); }
-[data-testid="stSidebar"] h3 { font-size: 0.95rem !important; color: var(--red); }
+[data-testid="stSidebar"] h2 { font-size: 1.05rem !important; font-weight: 600 !important; color: var(--text); }
+[data-testid="stSidebar"] h3 { font-size: 0.95rem !important; font-weight: 600 !important; color: var(--accent); }
 [data-testid="stSidebar"] [data-testid="stForm"] { border: 1px solid var(--line); background: var(--panel); }
-.log { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--muted); line-height: 2; }
+.log { font-family: var(--mono); font-size: 0.85rem; color: var(--muted); line-height: 2; }
 .log b { color: var(--text); font-weight: 500; float: right; }
 
-/* Title bar */
-.titlebar {
-    position: relative; overflow: hidden; padding: 22px 28px; margin-bottom: 16px;
-    background: linear-gradient(90deg, rgba(208,100,92,0.16), var(--panel) 60%);
-    border: 1px solid var(--line); border-left: 4px solid var(--red);
-}
-.titlebar::after {
-    content: "☣"; position: absolute; right: 30px; top: 50%; transform: translateY(-50%);
-    font-size: 110px; line-height: 1; color: rgba(208,100,92,0.12);
-}
-.titlebar .kicker { font-family: 'JetBrains Mono', monospace; color: var(--red); font-size: 0.8rem; letter-spacing: 0.12em; }
-.titlebar h1 { font-size: 2rem !important; color: var(--text); margin: 4px 0 6px 0 !important; padding: 0 !important; }
-.titlebar p { color: var(--muted); margin: 0 0 14px 0; font-size: 1rem; }
-.tag { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text);
-       border: 1px solid var(--line); background: var(--bg); padding: 4px 10px; margin: 0 6px 4px 0; }
-.tag.live::before { content: "●"; color: var(--red); margin-right: 6px; }
+/* Status bar */
+.statusbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 0 14px 0; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand .name { font-size: 1.35rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; line-height: 1.1; }
+.brand .area { font-size: 0.85rem; color: var(--muted); }
+.status { display: flex; align-items: center; gap: 18px; font-family: var(--mono); font-size: 0.85rem; color: var(--muted); }
+.status .live { color: var(--teal); }
+.status .live::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); margin-right: 8px; box-shadow: 0 0 0 3px var(--teal-soft); }
 
-/* Cyberpunk navigation (soft) */
-.st-key-nav div[role="radiogroup"] { gap: 6px; }
-.st-key-nav div[role="radiogroup"] label {
-    margin: 0 !important; padding: 10px 28px 10px 20px; cursor: pointer; background: var(--panel);
-    clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
-    border-bottom: 2px solid var(--line); transition: background .12s;
-}
-.st-key-nav div[role="radiogroup"] label > div > div:first-child:not([data-testid]) { display: none; }
-.st-key-nav div[role="radiogroup"] label p { font-family: 'Oswald', sans-serif; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-size: 0.95rem; }
-.st-key-nav div[role="radiogroup"] label:hover { background: var(--panel-2); }
-.st-key-nav div[role="radiogroup"] label:hover p { color: var(--text); }
-.st-key-nav div[role="radiogroup"] label[data-selected="true"] { background: var(--red); border-bottom-color: var(--teal); }
-.st-key-nav div[role="radiogroup"] label[data-selected="true"] p { color: #1a1b20; font-weight: 600; }
+/* Hero: top suspected source */
+.hero { position: relative; padding: 22px 26px 24px 26px; margin-bottom: 18px; background: linear-gradient(180deg, var(--accent-soft), var(--panel) 55%); border: 1px solid var(--accent-line); }
+.hero-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.flag { font-family: var(--mono); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #1a1b20; background: var(--accent); padding: 5px 12px;
+        clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%); }
+.score { font-family: var(--mono); font-size: 0.85rem; color: var(--accent); border: 1px solid var(--accent-line); padding: 4px 10px; }
+.hero .label { font-size: 0.85rem; color: var(--muted); }
+.hero .batch { font-size: 2rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; margin: 2px 0 2px 0; }
+.hero .sub { font-size: 0.95rem; color: var(--muted); margin-bottom: 18px; }
+.hero .sub b { color: var(--text); font-weight: 600; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.stats > div { padding: 14px 16px 14px 0; }
+.stats > div + div { padding-left: 16px; border-left: 1px solid var(--line); }
+.stats .k { font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+.stats .v { font-family: var(--mono); font-size: 1.15rem; color: var(--text); }
+.stats .v.accent { color: var(--accent); }
+.code { display: inline-block; margin-top: 16px; padding: 6px 12px; font-family: var(--mono); font-size: 0.86rem; }
+.code.rc1 { background: var(--accent-soft); color: #f0d29a; border: 1px solid var(--accent-line); }
+.code.rc2 { background: var(--teal-soft); color: var(--teal); border: 1px solid var(--teal-line); }
+.code.rc3 { background: rgba(179,173,165,0.10); color: var(--muted); border: 1px solid var(--line); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
 
-/* Cyberpunk buttons (soft) */
-.stApp .stButton button, .stApp .stDownloadButton button, .stApp [data-testid="stFormSubmitButton"] button {
+/* Cyberpunk buttons (Streamlit buttons + link buttons) */
+.stApp .stButton button, .stApp .stDownloadButton button, .stApp [data-testid="stFormSubmitButton"] button, a.cp-btn {
     position: relative; border: none; border-radius: 0; padding: 10px 30px 10px 20px; min-height: 0;
     clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
-    background: var(--red); color: #1a1b20; transition: background .12s, transform .08s;
+    background: var(--accent); color: #1a1b20; transition: background .12s, transform .08s;
 }
+a.cp-btn { display: inline-block; text-decoration: none !important; font-weight: 600; font-size: 0.88rem; letter-spacing: 0.08em; text-transform: uppercase; color: #1a1b20 !important; }
 .stApp .stButton button p, .stApp .stDownloadButton button p, .stApp [data-testid="stFormSubmitButton"] button p {
-    font-family: 'Oswald', sans-serif; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; font-size: 0.92rem;
+    font-weight: 600; font-size: 0.88rem; letter-spacing: 0.08em; text-transform: uppercase;
 }
-.stApp .stButton button::after, .stApp .stDownloadButton button::after, .stApp [data-testid="stFormSubmitButton"] button::after {
-    content: ""; position: absolute; right: 7px; bottom: 6px; width: 5px; height: 5px; background: #1a1b20;
+.stApp .stButton button:hover, .stApp .stDownloadButton button:hover, .stApp [data-testid="stFormSubmitButton"] button:hover, a.cp-btn:hover { background: #e6b862; color: #1a1b20; }
+.stApp .stButton button:active, .stApp .stDownloadButton button:active, .stApp [data-testid="stFormSubmitButton"] button:active, a.cp-btn:active { transform: translateY(1px); }
+.stApp .stButton button:focus-visible, .stApp .stDownloadButton button:focus-visible, .stApp [data-testid="stFormSubmitButton"] button:focus-visible, a.cp-btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+a.cp-btn.ghost, [data-testid="stSidebar"] [data-testid="stFormSubmitButton"] button {
+    background: linear-gradient(225deg, var(--accent) 0 14px, var(--panel-2) 14px); color: var(--text) !important; box-shadow: inset 3px 0 0 var(--accent);
 }
-.stApp .stButton button:hover, .stApp .stDownloadButton button:hover, .stApp [data-testid="stFormSubmitButton"] button:hover {
-    background: #dc7a72; color: #1a1b20;
-}
-.stApp .stButton button:active, .stApp .stDownloadButton button:active, .stApp [data-testid="stFormSubmitButton"] button:active { transform: translateY(1px); }
-.stApp .stButton button:focus-visible, .stApp .stDownloadButton button:focus-visible, .stApp [data-testid="stFormSubmitButton"] button:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
-[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] button {
-    width: 100%; background: linear-gradient(225deg, var(--red) 0 14px, var(--panel-2) 14px); color: var(--text);
-    box-shadow: inset 3px 0 0 var(--red);
-}
-[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] button::after { background: var(--red); }
-[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] button:hover { background: var(--red); color: #1a1b20; }
+[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] button { width: 100%; }
+a.cp-btn.ghost:hover, [data-testid="stSidebar"] [data-testid="stFormSubmitButton"] button:hover { background: var(--accent); color: #1a1b20 !important; }
 
-/* KPI counters */
-.st-key-kpis [data-testid="stMetric"] {
-    background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--red);
-    padding: 16px 18px; min-height: 128px;
-}
-.st-key-kpis [data-testid="stColumn"]:nth-child(3) [data-testid="stMetric"] { border-top-color: var(--amber); }
-.st-key-kpis [data-testid="stColumn"]:nth-child(5) [data-testid="stMetric"] { border-top-color: var(--teal); }
-[data-testid="stMetricLabel"] p { font-size: 0.85rem; font-weight: 500; color: var(--muted); white-space: normal; }
-[data-testid="stMetricLabel"] .stMarkdownEllipsis { white-space: normal; overflow: visible; }
-.stMain [data-testid="stMetricValue"], .stMain [data-testid="stMetricValue"] div {
-    font-family: 'JetBrains Mono', monospace; color: var(--text); font-size: 1.9rem; font-weight: 500; overflow: visible; text-overflow: clip;
-}
-.st-key-kpis [data-testid="stColumn"]:nth-child(2) [data-testid="stMetricValue"] div { color: var(--red); }
-
-/* Spread bars */
-.spread { display: flex; gap: 14px; flex-wrap: wrap; margin: 14px 0 4px 0; }
-.spread .bar { flex: 1 1 280px; background: var(--panel); border: 1px solid var(--line); padding: 12px 16px; }
-.spread .row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.88rem; color: var(--muted); }
-.spread .row b { font-family: 'JetBrains Mono', monospace; color: var(--text); font-weight: 500; }
-.spread .track { height: 8px; background: var(--bg); }
-.spread .fill { height: 100%; background: var(--red); }
-.spread .fill.amber { background: var(--amber); }
-
-/* Source identified */
-.source {
-    margin: 18px 0 10px 0; padding: 20px 24px; background: linear-gradient(90deg, var(--red-soft), var(--panel) 65%);
-    border: 1px solid var(--red-line); border-left: 4px solid var(--red);
-}
-.source .kicker { font-family: 'JetBrains Mono', monospace; color: var(--red); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; }
-.source .batch { font-family: 'JetBrains Mono', monospace; font-size: 1.55rem; color: var(--text); margin: 6px 0 14px 0; }
-.source .grid { display: flex; flex-wrap: wrap; gap: 34px; }
-.source .k { font-size: 0.8rem; color: var(--muted); margin-bottom: 2px; }
-.source .v { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; color: var(--text); }
-.code { display: inline-block; margin-top: 16px; padding: 6px 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; }
-.code.rc1 { background: var(--red-soft); color: #f0b3ad; border: 1px solid var(--red-line); }
-.code.rc2 { background: rgba(214,167,86,0.12); color: var(--amber); border: 1px solid rgba(214,167,86,0.45); }
-.code.rc3 { background: rgba(179,173,165,0.10); color: var(--muted); border: 1px solid var(--line); }
+/* Metric cards */
+.kpi-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.kpi { grid-column: span 2; background: var(--panel); border: 1px solid var(--line); padding: 16px 18px; }
+.kpi.wide { grid-column: span 3; }
+.kpi .k { font-size: 0.85rem; color: var(--muted); }
+.kpi .v { font-family: var(--mono); font-size: 2rem; font-weight: 500; color: var(--text); margin: 4px 0 2px 0; line-height: 1.15; }
+.kpi .v small { font-size: 1rem; color: var(--muted); }
+.kpi .v.accent { color: var(--accent); }
+.kpi .s { font-size: 0.85rem; color: var(--muted); margin-bottom: 12px; }
+.kpi .s.down { color: #e39a8f; }
+.kpi .track { height: 6px; background: var(--bg); }
+.kpi .fill { height: 100%; background: var(--accent); }
+.kpi .fill.second { background: var(--teal); }
+@media (max-width: 900px) { .kpi, .kpi.wide { grid-column: span 6; } .stats { grid-template-columns: 1fr; } .stats > div + div { padding-left: 0; border-left: none; border-top: 1px solid var(--line); } }
 
 /* Panels, alerts, expander, tables */
 .stMain [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]) { background: var(--panel); padding: 6px 8px; }
 .stMain [data-testid="stExpander"] details { background: var(--panel); }
 .stMain [data-testid="stExpander"] summary p { font-weight: 600; }
 .stMain [data-testid="stDataFrame"] { border: 1px solid var(--line); }
+.stMain [data-testid="stMetricValue"], .stMain [data-testid="stMetricValue"] div { font-family: var(--mono); font-weight: 500; }
 
-/* Wrapping table (Top-3) */
+/* Wrapping tables */
 .wrap-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; border: 1px solid var(--line); }
 .wrap-table th { text-align: left; font-weight: 500; color: var(--muted); background: var(--panel-2); padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 0.88rem; }
 .wrap-table td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: middle; color: var(--text); line-height: 1.45; }
 .wrap-table tr:last-child td { border-bottom: none; }
-.wrap-table.top3 tbody tr:first-child td { background: var(--red-soft); }
-.wrap-table .num { text-align: right; font-family: 'JetBrains Mono', monospace; }
-.wrap-table .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; }
+.wrap-table.top3 tbody tr:first-child td { background: var(--accent-soft); }
+.wrap-table .num { text-align: right; font-family: var(--mono); }
+.wrap-table .mono { font-family: var(--mono); font-size: 0.9rem; }
 .wrap-table .risk { min-width: 110px; }
 .wrap-table .risk-track { height: 6px; background: var(--bg); margin-top: 6px; }
-.wrap-table .risk-fill { height: 100%; background: var(--red); }
+.wrap-table .risk-fill { height: 100%; background: var(--accent); }
+.ok-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); margin-right: 8px; }
+
+/* Bottom dock navigation */
+.st-key-nav {
+    position: fixed; bottom: 0; right: 0; left: 290px; z-index: 990; padding: 10px 16px 12px 16px;
+    background: rgba(22,23,27,0.94); border-top: 1px solid var(--line); backdrop-filter: blur(8px);
+}
+body:has([data-testid="stSidebar"][aria-expanded="false"]) .st-key-nav { left: 0; }
+@media (max-width: 768px) { .st-key-nav { left: 0; } }
+.st-key-nav { align-items: center; width: auto !important; }
+.st-key-nav [data-testid="stElementContainer"] { width: auto !important; }
+.st-key-nav div[role="radiogroup"] { gap: 8px; justify-content: center; flex-wrap: nowrap; width: 100%; }
+.st-key-nav div[role="radiogroup"] label {
+    margin: 0 !important; padding: 8px 30px 8px 22px; min-width: 150px; justify-content: center; cursor: pointer; background: var(--panel);
+    clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
+    border-bottom: 2px solid var(--line); transition: background .12s;
+}
+.st-key-nav div[role="radiogroup"] label > div > div:first-child:not([data-testid]) { display: none; }
+.st-key-nav div[role="radiogroup"] label p { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.st-key-nav div[role="radiogroup"] label p span { font-size: 1.3rem !important; }
+.st-key-nav div[role="radiogroup"] label:hover { background: var(--panel-2); }
+.st-key-nav div[role="radiogroup"] label:hover p { color: var(--text); }
+.st-key-nav div[role="radiogroup"] label[data-selected="true"] { background: var(--accent); border-bottom-color: #1a1b20; }
+.st-key-nav div[role="radiogroup"] label[data-selected="true"] p { color: #1a1b20; }
 
 /* Graph legend */
 .legend { display: flex; flex-wrap: wrap; gap: 20px; font-size: 0.92rem; color: var(--muted); margin: 4px 0 12px 0; }
 .legend i { display: inline-block; width: 10px; height: 10px; margin-right: 8px; vertical-align: -1px; }
+/* ===== Animations & interactions ===== */
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes fill-in { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes scan { 0% { transform: translateX(-120%); } 60%, 100% { transform: translateX(420%); } }
+@keyframes flag-alert { 0%, 100% { filter: none; } 8%, 24% { filter: brightness(1.45) drop-shadow(0 0 8px rgba(217,164,65,0.8)); } 16% { filter: brightness(0.8); } }
+@keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(124,196,192,0.65); } 100% { box-shadow: 0 0 0 10px rgba(124,196,192,0); } }
+@keyframes shine { from { transform: translateX(-130%) skewX(-20deg); } to { transform: translateX(260%) skewX(-20deg); } }
+@keyframes glitch {
+    0%   { clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut))); transform: none; }
+    20%  { clip-path: polygon(0 8%, calc(100% - var(--cut)) 8%, 100% 30%, 100% 60%, var(--cut) 60%, 0 40%); transform: translateX(-2px); }
+    40%  { clip-path: polygon(0 45%, 100% 45%, 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut))); transform: translateX(2px); }
+    60%  { clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 70%, 0 70%); transform: translateX(-1px); }
+    100% { clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut))); transform: none; }
+}
+@keyframes glow-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(217,164,65,0); } 50% { box-shadow: 0 0 22px 2px rgba(217,164,65,0.35); } }
+@keyframes hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } 70% { transform: translateY(1px); } }
+@keyframes underline { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Entrance: staggered rise */
+.statusbar { animation: rise .5s ease-out both; }
+.hero { animation: rise .6s .05s ease-out both; }
+.kpi { animation: rise .55s ease-out both; }
+.kpi:nth-child(1) { animation-delay: .15s; } .kpi:nth-child(2) { animation-delay: .22s; } .kpi:nth-child(3) { animation-delay: .29s; }
+.kpi:nth-child(4) { animation-delay: .36s; } .kpi:nth-child(5) { animation-delay: .43s; }
+.stMain [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]),
+.stMain [data-testid="stExpander"] { animation: rise .6s .45s ease-out both; }
+.kpi .fill, .wrap-table .risk-fill { transform-origin: left; animation: fill-in 1.1s .5s cubic-bezier(.2,.8,.2,1) both; }
+
+/* Hero: scanning beam + alert flag */
+.hero { overflow: hidden; }
+.hero::after {
+    content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 22%; pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(217,164,65,0.10), rgba(255,236,190,0.16), rgba(217,164,65,0.10), transparent);
+    animation: scan 6s 1.2s ease-in-out infinite;
+}
+.flag { animation: flag-alert 4s 1s infinite; }
+.score { transition: background .2s, color .2s; }
+.hero:hover .score { background: var(--accent); color: #1a1b20; }
+.hero .stats > div { transition: background .2s; }
+.hero .stats > div:hover { background: rgba(217,164,65,0.06); }
+
+/* Live signal */
+.status .live::before { animation: ping 1.8s ease-out infinite; }
+
+/* Buttons: shine sweep, glitch on hover, press-down */
+.stApp .stButton button, .stApp .stDownloadButton button, .stApp [data-testid="stFormSubmitButton"] button, a.cp-btn { overflow: hidden; }
+.stApp .stButton button::before, .stApp .stDownloadButton button::before, .stApp [data-testid="stFormSubmitButton"] button::before, a.cp-btn::before {
+    content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent); transform: translateX(-130%) skewX(-20deg);
+}
+.stApp .stButton button:hover::before, .stApp .stDownloadButton button:hover::before, .stApp [data-testid="stFormSubmitButton"] button:hover::before, a.cp-btn:hover::before { animation: shine .7s ease-out; }
+.stApp .stButton button:hover, .stApp .stDownloadButton button:hover, .stApp [data-testid="stFormSubmitButton"] button:hover, a.cp-btn:hover {
+    animation: glitch .32s steps(2, end) 1; text-shadow: -1.5px 0 var(--teal), 1.5px 0 rgba(0,0,0,0.35); box-shadow: 0 0 24px rgba(217,164,65,0.45);
+}
+.stApp .stButton button:active, .stApp .stDownloadButton button:active, .stApp [data-testid="stFormSubmitButton"] button:active, a.cp-btn:active { transform: scale(0.97) translateY(1px); }
+
+/* Cards: lift + glow */
+.kpi { transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+.kpi:hover { transform: translateY(-4px); border-color: var(--accent-line); box-shadow: 0 14px 34px rgba(0,0,0,0.4), 0 0 24px rgba(217,164,65,0.15); }
+.kpi:hover .fill { filter: brightness(1.25) drop-shadow(0 0 6px rgba(217,164,65,0.7)); }
+.kpi:hover .fill.second { filter: brightness(1.2) drop-shadow(0 0 6px rgba(124,196,192,0.7)); }
+.kpi .v { transition: letter-spacing .25s ease, color .25s ease; }
+.kpi:hover .v { letter-spacing: 0.02em; }
+.stMain [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]) { transition: border-color .25s, box-shadow .25s; }
+.stMain [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]):hover { border-color: var(--accent-line) !important; box-shadow: 0 0 30px rgba(217,164,65,0.10); }
+
+/* Section headings: underline grows in */
+.stMain h3 { position: relative; }
+.stMain h3::after { content: ""; position: absolute; left: 0; bottom: 0; width: 56px; height: 2px; background: var(--accent); transform-origin: left; animation: underline .7s .6s ease-out both; }
+
+/* Tables: row highlight */
+.wrap-table tbody tr { transition: background .15s; }
+.wrap-table tbody tr:hover td { background: rgba(217,164,65,0.09); }
+.wrap-table tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* Dock: icon hop + glowing active tab */
+.st-key-nav div[role="radiogroup"] label { transition: background .15s, transform .15s; }
+.st-key-nav div[role="radiogroup"] label:hover { transform: translateY(-3px); }
+.st-key-nav div[role="radiogroup"] label:hover p span { animation: hop .45s ease-out; }
+.st-key-nav div[role="radiogroup"] label[data-selected="true"] { animation: glow-pulse 2.6s ease-in-out infinite; }
+
+/* Sidebar inputs: amber focus glow */
+[data-testid="stSidebar"] [data-baseweb="select"] > div, [data-testid="stSidebar"] [role="group"] { transition: box-shadow .2s, border-color .2s; }
+[data-testid="stSidebar"] [data-baseweb="select"] > div:hover, [data-testid="stSidebar"] [role="group"]:hover { box-shadow: 0 0 0 1px var(--accent-line), 0 0 14px rgba(217,164,65,0.18); }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+.st-key-cursorfx { display: none; }
+/* ===== Targeting cursor (drawn by the cursor script; only active on mouse devices) ===== */
+html.tc-cursor-on, html.tc-cursor-on * { cursor: none !important; }
+html.tc-cursor-on input[type="text"], html.tc-cursor-on textarea { cursor: text !important; }
+#tc-cursor { position: fixed; inset: 0; pointer-events: none; z-index: 2147483647; opacity: 0; transition: opacity .2s; }
+#tc-cursor .tc-ring { position: absolute; left: 0; top: 0; width: 34px; height: 34px; will-change: transform, width, height; }
+#tc-cursor .c { position: absolute; width: 10px; height: 10px; border: 0 solid var(--accent); filter: drop-shadow(0 0 4px rgba(217,164,65,0.85)); transition: border-color .2s, width .2s, height .2s; }
+#tc-cursor .tl { left: 0; top: 0; border-top-width: 2px; border-left-width: 2px; }
+#tc-cursor .tr { right: 0; top: 0; border-top-width: 2px; border-right-width: 2px; }
+#tc-cursor .bl { left: 0; bottom: 0; border-bottom-width: 2px; border-left-width: 2px; }
+#tc-cursor .br { right: 0; bottom: 0; border-bottom-width: 2px; border-right-width: 2px; }
+#tc-cursor .tc-dot, #tc-cursor .tc-chev { position: absolute; left: 0; top: 0; will-change: transform; }
+#tc-cursor .tc-dot i { position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 10px 3px rgba(217,164,65,0.75); transition: background .2s, box-shadow .2s, transform .12s; }
+#tc-cursor .tc-chev b { position: absolute; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border: 0 solid var(--teal);
+    border-width: 2px 2px 0 0; opacity: 0; transition: opacity .18s; filter: drop-shadow(0 0 4px rgba(124,196,192,0.9)); }
+#tc-cursor .tc-chev .u { transform: translateY(-17px) rotate(-45deg); }
+#tc-cursor .tc-chev .r { transform: translateX(17px) rotate(45deg); }
+#tc-cursor .tc-chev .d { transform: translateY(17px) rotate(135deg); }
+#tc-cursor .tc-chev .l { transform: translateX(-17px) rotate(-135deg); }
+#tc-cursor.lock .c { border-color: var(--teal); width: 14px; height: 14px; filter: drop-shadow(0 0 6px rgba(124,196,192,0.9)); }
+#tc-cursor.lock .tc-dot i { background: var(--teal); box-shadow: 0 0 10px 3px rgba(124,196,192,0.75); }
+#tc-cursor.lock .tc-chev b { opacity: 1; animation: chev-pulse .9s ease-in-out infinite; }
+#tc-cursor.lock .tc-chev .u { --dx: 0px; --dy: -17px; --rot: -45deg; }
+#tc-cursor.lock .tc-chev .r { --dx: 17px; --dy: 0px; --rot: 45deg; }
+#tc-cursor.lock .tc-chev .d { --dx: 0px; --dy: 17px; --rot: 135deg; }
+#tc-cursor.lock .tc-chev .l { --dx: -17px; --dy: 0px; --rot: -135deg; }
+@keyframes chev-pulse {
+    0%, 100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); }
+    50%      { transform: translate(calc(var(--dx) * 1.25), calc(var(--dy) * 1.25)) rotate(var(--rot)); }
+}
+#tc-cursor.down .tc-dot i { transform: scale(0.55); }
+#tc-cursor.down .c { width: 7px; height: 7px; }
+/* Idle cursor look (hover/lock look above stays the same) */
+#tc-cursor:not(.lock) .tc-dot i { left: -6px; top: -6px; width: 12px; height: 12px; background: transparent; border: 2px solid var(--accent);
+    box-shadow: 0 0 8px 1px rgba(217,164,65,0.6), inset 0 0 4px rgba(217,164,65,0.5); }
+#tc-cursor:not(.lock) .tc-dot i::after { content: ""; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; border-radius: 50%; background: var(--accent); }
+#tc-cursor:not(.lock) .c { width: 8px; height: 8px; animation: breathe 1.6s ease-in-out infinite; }
+#tc-cursor .tl { --bx: -1; --by: -1; } #tc-cursor .tr { --bx: 1; --by: -1; } #tc-cursor .bl { --bx: -1; --by: 1; } #tc-cursor .br { --bx: 1; --by: 1; }
+@keyframes breathe { 0%, 100% { transform: none; } 50% { transform: translate(calc(var(--bx) * 3px), calc(var(--by) * 3px)); } }
+#tc-cursor.down:not(.lock) .c { width: 6px; height: 6px; }
+
+/* "Come out" on hover: lift, grow and glow (the glow sits on the wrapper so the cut corners don't clip it) */
+.stButton, .stDownloadButton, [data-testid="stFormSubmitButton"], .cp-wrap { transition: filter .2s ease; }
+.stButton:hover, .stDownloadButton:hover, [data-testid="stFormSubmitButton"]:hover, .cp-wrap:hover {
+    filter: drop-shadow(0 0 10px rgba(217,164,65,0.75)) drop-shadow(0 0 26px rgba(217,164,65,0.45));
+}
+.cp-wrap { display: inline-block; }
+.stApp .stButton button, .stApp .stDownloadButton button, .stApp [data-testid="stFormSubmitButton"] button, a.cp-btn { transition: background .12s, transform .18s cubic-bezier(.2,.9,.3,1.4); }
+.stApp .stButton button:hover, .stApp .stDownloadButton button:hover, .stApp [data-testid="stFormSubmitButton"] button:hover, a.cp-btn:hover { transform: translateY(-3px) scale(1.05); }
+.stApp .stButton button:active, .stApp .stDownloadButton button:active, .stApp [data-testid="stFormSubmitButton"] button:active, a.cp-btn:active { transform: translateY(0) scale(0.97); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -199,7 +381,7 @@ cleaned_patients = deduped_patients.dropna(subset=['reported_vendor', 'status'])
 missing_removed = len(deduped_patients) - len(cleaned_patients)
 
 # 2. SIDEBAR: TEMPORAL CONTROLS & LIVE HOSPITAL INTAKE
-st.sidebar.header("Outbreak Simulation Controls")
+st.sidebar.header("Outbreak simulation controls")
 current_day = st.sidebar.slider(
     "Timeline: Days Passed (Strict Past-Data Filter)", 
     min_value=1, max_value=3, value=3,
@@ -207,7 +389,7 @@ current_day = st.sidebar.slider(
 )
 
 st.sidebar.divider()
-st.sidebar.subheader("Live Patient Report Input")
+st.sidebar.subheader("Live patient report input")
 st.sidebar.caption("Inject new synthetic case reports dynamically.")
 with st.sidebar.form("live_intake_form"):
     v_choice = st.selectbox("Vendor Visited", sorted(df_vendors['vendor_id'].unique()))
@@ -229,7 +411,7 @@ with st.sidebar.form("live_intake_form"):
         st.rerun()
 
 st.sidebar.divider()
-st.sidebar.subheader("Ingestion & Cleaning Log")
+st.sidebar.subheader("Ingestion & cleaning log")
 st.sidebar.markdown(f"""
 <div class="log">
 Raw reports ingested <b>{total_raw_records}</b><br>
@@ -316,19 +498,123 @@ prime_suspect = top_1_suspect['Batch'] if top_1_suspect is not None else None
 
 # HEADER & 3-TAB HORIZONTAL RADIO MENU
 st.markdown(f"""
-<div class="titlebar">
-  <div class="kicker">OUTBREAK INTELLIGENCE // THANE · KALYAN · DOMBIVLI</div>
-  <h1>Tracing the Source</h1>
-  <p>Bayesian traceback from patient reports to vendors, batches and wholesalers.</p>
-  <span class="tag live">DAY {current_day} / 3</span>
-  <span class="tag">{len(cleaned_patients)} CLEANED REPORTS</span>
-  <span class="tag">SEED 42</span>
+<div class="statusbar">
+  <div class="brand">
+    <div><div class="name">Tracing the Source</div><div class="area">Thane · Kalyan · Dombivli outbreak console</div></div></div>
+  <div class="status"><span class="live">Live</span><span>Day {current_day} of 3</span></div>
 </div>
 """, unsafe_allow_html=True)
+# Targeting cursor (UI only): an amber reticle that locks onto buttons and cards on hover
+CURSOR_JS = r"""
+<script>
+(function () {
+  const w = window.parent, d = w.document;
+  if (d.getElementById('tc-cursor-script') || w.matchMedia('(pointer: coarse)').matches) return;
+  const s = d.createElement('script');
+  s.id = 'tc-cursor-script';
+  s.textContent = `(function () {
+    const d = document, root = d.createElement('div');
+    root.id = 'tc-cursor';
+    root.innerHTML = '<div class="tc-ring"><i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i></div>' +
+                     '<div class="tc-chev"><b class="u"></b><b class="r"></b><b class="d"></b><b class="l"></b></div>' +
+                     '<div class="tc-dot"><i></i></div>';
+    d.body.appendChild(root);
+    d.documentElement.classList.add('tc-cursor-on');
+    const ring = root.querySelector('.tc-ring'), dot = root.querySelector('.tc-dot'), chev = root.querySelector('.tc-chev');
+    const LOCK = 'button, a.cp-btn, .st-key-nav label, [data-baseweb="select"], [role="slider"], .kpi, summary';
+    let mx = -100, my = -100, rx = -100, ry = -100, rw = 34, rh = 34, target = null;
+    function setTarget(t) { if (t === target) return; target = t; root.classList.toggle('lock', !!t); }
+    d.addEventListener('mousemove', function (e) {
+      mx = e.clientX; my = e.clientY;
+      const overFrame = e.target.tagName === 'IFRAME' || e.target.tagName === 'CANVAS';
+      root.style.opacity = overFrame ? 0 : 1;
+      d.documentElement.classList.toggle('tc-cursor-on', !overFrame);
+      setTarget(e.target.closest ? e.target.closest(LOCK) : null);
+    }, { passive: true });
+    d.addEventListener('mouseout', function (e) { if (!e.relatedTarget) root.style.opacity = 0; });
+    d.addEventListener('mousedown', function () { root.classList.add('down'); });
+    d.addEventListener('mouseup', function () { root.classList.remove('down'); });
+    (function loop() {
+      let cx = mx, cy = my, tw = 34, th = 34;
+      if (target && target.isConnected) {
+        const r = target.getBoundingClientRect(), pad = 7;
+        tw = r.width + pad * 2; th = r.height + pad * 2; cx = r.left + r.width / 2; cy = r.top + r.height / 2;
+      } else if (target) { setTarget(null); }
+      rx += (cx - rx) * 0.24; ry += (cy - ry) * 0.24; rw += (tw - rw) * 0.24; rh += (th - rh) * 0.24;
+      ring.style.width = rw + 'px'; ring.style.height = rh + 'px';
+      ring.style.transform = 'translate(' + (rx - rw / 2) + 'px,' + (ry - rh / 2) + 'px)';
+      dot.style.transform = chev.style.transform = 'translate(' + mx + 'px,' + my + 'px)';
+      requestAnimationFrame(loop);
+    })();
+
+    /* Pixel trail: background grid cells light up around the cursor in a ragged stair-step and fade out */
+    const host = d.querySelector('[data-testid="stAppViewContainer"]') || d.body;
+    const cv = d.createElement('canvas');
+    cv.id = 'tc-pixels';
+    cv.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:-1;';
+    host.insertBefore(cv, host.firstChild);
+    const ctx = cv.getContext('2d'), CELL = 24, RADIUS = 4, cells = new Map();
+    let dpr = 1, running = false, lastCell = '';
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    resize(); window.addEventListener('resize', resize);
+    function light(cx, cy) {
+      for (let dx = -RADIUS; dx <= RADIUS; dx++) {
+        for (let dy = -RADIUS; dy <= RADIUS; dy++) {
+          const dist = Math.hypot(dx, dy);
+          if (dist > RADIUS + Math.random() * 1.2 - 0.6) continue;
+          const key = (cx + dx) + ',' + (cy + dy);
+          const strength = Math.max(0, 1 - dist / (RADIUS + 0.8)) * (0.55 + Math.random() * 0.45);
+          const cell = cells.get(key);
+          if (!cell || cell.a < strength) cells.set(key, { a: strength, teal: cell ? cell.teal : Math.random() < 0.12 });
+        }
+      }
+      if (!running) { running = true; requestAnimationFrame(draw); }
+    }
+    function draw() {
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      cells.forEach(function (c, key) {
+        const p = key.split(','), x = p[0] * CELL, y = p[1] * CELL;
+        ctx.fillStyle = c.teal ? 'rgba(124,196,192,' + (c.a * 0.42) + ')' : 'rgba(217,164,65,' + (c.a * 0.38) + ')';
+        ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+        if (c.a > 0.55) {
+          ctx.strokeStyle = c.teal ? 'rgba(124,196,192,' + (c.a * 0.7) + ')' : 'rgba(240,200,120,' + (c.a * 0.6) + ')';
+          ctx.strokeRect(x + 1.5, y + 1.5, CELL - 3, CELL - 3);
+        }
+        c.a *= 0.93;
+        if (c.a < 0.02) cells.delete(key);
+      });
+      if (cells.size) requestAnimationFrame(draw); else running = false;
+    }
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      d.addEventListener('mousemove', function (e) {
+        if (e.target.tagName === 'IFRAME' || e.target.tagName === 'CANVAS' && e.target !== cv) return;
+        const cx = Math.floor(e.clientX / CELL), cy = Math.floor(e.clientY / CELL), key = cx + ',' + cy;
+        if (key === lastCell) return;
+        lastCell = key; light(cx, cy);
+      }, { passive: true });
+    }
+  })();`;
+  d.head.appendChild(s);
+})();
+</script>
+"""
+with st.container(key="cursorfx"):
+    components.html(CURSOR_JS, height=0)
+
+NAV_LABELS = {
+    "Main Dashboard": ":material/dashboard: Dashboard",
+    "Geographic Map": ":material/map: Map",
+    "Supply Chain Graph": ":material/hub: Supply chain",
+}
 with st.container(key="nav"):
     view_option = st.radio(
         "Select View:",
         ["Main Dashboard", "Geographic Map", "Supply Chain Graph"],
+        format_func=NAV_LABELS.get,
         horizontal=True,
         label_visibility="collapsed"
     )
@@ -341,42 +627,50 @@ if view_option == "Main Dashboard":
     affected_wards = df_vendors[df_vendors['vendor_id'].isin(sick_patients['reported_vendor'])]['ward'].nunique()
     late_cases_count = int(available_reports['is_late_report'].sum())
 
-    kpi1, kpi2, kpi3, kpi4, kpi5 = st.container(key="kpis").columns(5)
-    kpi1.metric("Cleaned Reports (≤ Day " + str(current_day) + ")", len(available_reports), f"-{duplicates_removed + missing_removed} noisy/missing")
-    kpi2.metric("Confirmed Sick Cases", len(sick_patients))
-    kpi3.metric("Late Reports Integrated", late_cases_count)
-    kpi4.metric("Implicated Vendors", f"{implicated_vendors} / 75")
-    kpi5.metric("City Wards Affected", f"{affected_wards} / 24")
-
-    st.markdown(f"""
-<div class="spread">
-  <div class="bar"><div class="row"><span>Wards infected</span><b>{affected_wards} / 24</b></div>
-    <div class="track"><div class="fill" style="width:{min(affected_wards / 24, 1) * 100:.0f}%"></div></div></div>
-  <div class="bar"><div class="row"><span>Vendors implicated</span><b>{implicated_vendors} / 75</b></div>
-    <div class="track"><div class="fill amber" style="width:{min(implicated_vendors / 75, 1) * 100:.0f}%"></div></div></div>
-</div>
-""", unsafe_allow_html=True)
-
     # RUBRIC: TOP-1 & TOP-3 LIST + EARLY DETECTION BANNER
     if top_1_suspect is not None:
         rc_class = "rc1" if top_1_suspect['Reason Code'].startswith("RC-01") else "rc2" if top_1_suspect['Reason Code'].startswith("RC-02") else "rc3"
         st.markdown(f"""
-<div class="source">
-  <div class="kicker">Top-1 suspected source · Day {current_day} early detection · pre-lab confirmation</div>
+<div class="hero">
+  <div class="hero-top"><span class="flag">Top-1 suspected source identified</span><span class="score">{top_1_suspect['Risk Score (%)']}% posterior risk</span></div>
+  <div class="label">Day {current_day} early detection · before lab confirmation</div>
   <div class="batch">{html.escape(str(top_1_suspect['Batch']))}</div>
-  <div class="grid">
-    <div><div class="k">Wholesaler</div><div class="v">{html.escape(str(top_1_suspect['Wholesaler']))}</div></div>
-    <div><div class="k">Posterior risk</div><div class="v">{top_1_suspect['Risk Score (%)']}%</div></div>
-    <div><div class="k">vs. baseline</div><div class="v">{top_1_suspect['Relative Risk']}</div></div>
-    <div><div class="k">Sick / healthy</div><div class="v">{top_1_suspect['Sick']} / {top_1_suspect['Healthy']}</div></div>
-    <div><div class="k">Wards hit</div><div class="v">{top_1_suspect['Wards Hit']}</div></div>
+  <div class="sub">Wholesaler <b>{html.escape(str(top_1_suspect['Wholesaler']))}</b></div>
+  <div class="stats">
+    <div><div class="k">Relative risk vs. baseline</div><div class="v accent">{top_1_suspect['Relative Risk']}</div></div>
+    <div><div class="k">Sick / healthy exposed</div><div class="v">{top_1_suspect['Sick']} / {top_1_suspect['Healthy']}</div></div>
+    <div><div class="k">Wards hit</div><div class="v">{top_1_suspect['Wards Hit']} of 24</div></div>
   </div>
   <div class="code {rc_class}">{html.escape(str(top_1_suspect['Reason Code']))}</div>
+  <div class="actions"><span class="cp-wrap"><a class="cp-btn" href="#recall">Targeted recall list</a></span><span class="cp-wrap"><a class="cp-btn ghost" href="#evidence">Evidence trail</a></span></div>
+</div>
+""", unsafe_allow_html=True)
+
+    def pct(part, whole):
+        return min(part / whole, 1) * 100 if whole else 0
+
+    st.markdown(f"""
+<div class="kpi-grid">
+  <div class="kpi wide"><div class="k">Confirmed sick cases</div><div class="v accent">{len(sick_patients)}</div>
+    <div class="s">of {len(available_reports)} cleaned reports</div>
+    <div class="track"><div class="fill" style="width:{pct(len(sick_patients), len(available_reports)):.0f}%"></div></div></div>
+  <div class="kpi wide"><div class="k">Cleaned reports (≤ Day {current_day})</div><div class="v">{len(available_reports)}</div>
+    <div class="s down">-{duplicates_removed + missing_removed} noisy/missing removed</div>
+    <div class="track"><div class="fill second" style="width:{pct(len(available_reports), len(cleaned_patients)):.0f}%"></div></div></div>
+  <div class="kpi"><div class="k">Late reports integrated</div><div class="v">{late_cases_count}</div>
+    <div class="s">reported after the day of eating</div>
+    <div class="track"><div class="fill second" style="width:{pct(late_cases_count, len(available_reports)):.0f}%"></div></div></div>
+  <div class="kpi"><div class="k">Implicated vendors</div><div class="v">{implicated_vendors} <small>/ 75</small></div>
+    <div class="s">linked to a sick case</div>
+    <div class="track"><div class="fill" style="width:{pct(implicated_vendors, 75):.0f}%"></div></div></div>
+  <div class="kpi"><div class="k">City wards affected</div><div class="v">{affected_wards} <small>/ 24</small></div>
+    <div class="s">with at least one sick case</div>
+    <div class="track"><div class="fill" style="width:{pct(affected_wards, 24):.0f}%"></div></div></div>
 </div>
 """, unsafe_allow_html=True)
 
     with st.container(border=True):
-        st.subheader("Top-3 Ranked Suspected Sources (Bayesian Engine)")
+        st.subheader("Top-3 ranked suspected sources (Bayesian engine)")
         st.caption("Separates true common exposures from popular foods, 5% background illness, and 10% wrong recall.")
         # Rendered as a wrapping table so the long reason codes never need a horizontal scrollbar
         top3_rows = "".join(
@@ -398,7 +692,7 @@ if view_option == "Main Dashboard":
 """, unsafe_allow_html=True)
 
     with st.container(border=True):
-        st.subheader("Simple Baseline (Raw Case Count & Co-occurrence)")
+        st.subheader("Simple baseline (raw case count & co-occurrence)")
         st.caption("Fails by flagging popular foods eaten by everyone.")
         naive_df = sick_patients.merge(df_vendors, left_on='reported_vendor', right_on='vendor_id')
         naive_counts = naive_df['batch_received'].value_counts().reset_index()
@@ -410,8 +704,8 @@ if view_option == "Main Dashboard":
             st.error("**Baseline Failure:** Flags `BATCH-WT-01 (Bottled Water)` as #1 because 100% of vendors stock it (50 sick eaters, even though hundreds of healthy people also drank it).")
 
     # RUBRIC: EARLY DETECTION ACROSS DAYS (Proving Detection Before All Cases Arrive)
-    with st.expander("Early Detection Proof (Day 1 vs Day 2 vs Day 3 Trajectory & Mathematical Model)"):
-        st.markdown("#### 1. Early Source Detection (Before All Cases or Lab Results Arrive)")
+    with st.expander("Early detection proof (Day 1 vs Day 2 vs Day 3 trajectory & mathematical model)"):
+        st.markdown("#### 1. Early source detection (before all cases or lab results arrive)")
         day_progression = []
         for d in [1, 2, 3]:
             _, _, _, d_scores, _ = run_bayesian_traceback(cleaned_patients, df_vendors, df_batches, d)
@@ -428,12 +722,12 @@ if view_option == "Main Dashboard":
         day_df = pd.DataFrame(day_progression)
         day_head = "".join(f"<th>{html.escape(c)}</th>" for c in day_df.columns)
         day_body = "".join(
-            "<tr>" + "".join(f"<td>{html.escape(str(v))}</td>" for v in row) + "</tr>"
+            "<tr>" + "".join(f"<td>{html.escape(str(v)).replace('✅ ', '<span class=ok-dot></span>')}</td>" for v in row) + "</tr>"
             for row in day_df.itertuples(index=False)
         )
         st.markdown(f'<table class="wrap-table"><thead><tr>{day_head}</tr></thead><tbody>{day_body}</tbody></table>', unsafe_allow_html=True)
 
-        st.markdown("#### 2. Underlying Bayesian Laplace Math & Automated Temporal Test (`pytest`)")
+        st.markdown("#### 2. Underlying Bayesian Laplace math & automated temporal test (`pytest`)")
         st.latex(r"P(\text{Risk} \mid \text{Batch}) = \frac{\text{Confirmed Sick Descendants} + 1}{\text{Total Exposed (Sick + Healthy Controls)} + 2}")
         
         # Temporal leakage assertion check right inside UI
@@ -441,11 +735,9 @@ if view_option == "Main Dashboard":
         assert max_day_in_subset <= current_day, "Temporal Leakage Detected!"
         st.info(f"**Temporal Integrity Check Passed (`report_day <= {current_day}`):** Maximum `report_day` in active memory is **Day {max_day_in_subset}**. Zero future cases leaked.")
 
-    st.divider()
-
     # RUBRIC: TARGETED RECALL LIST (NOT A BROAD ONE) + EVIDENCE TRAIL FOR EACH RANKING
     with st.container(border=True):
-        st.subheader("Targeted Recall & Vendor Investigation List")
+        st.subheader("Targeted recall & vendor investigation list", anchor="recall")
         st.caption("Targets ONLY vendors linked to the Top-1 contaminated batch—sparing innocent businesses.")
         targeted_vendors = df_vendors[df_vendors['batch_received'] == prime_suspect].copy()
         v_case_counts = sick_patients.groupby('reported_vendor').size().reset_index(name='Confirmed Sick')
@@ -461,7 +753,7 @@ if view_option == "Main Dashboard":
         )
         recall_rows = targeted_list[['vendor_id', 'ward', 'batch_received', 'Confirmed Sick', 'Action']].head(8)
         st.dataframe(
-            recall_rows,
+            recall_rows.assign(Action=recall_rows['Action'].str.replace(r'^\W+\s*', '', regex=True)),
             column_config={"Confirmed Sick": st.column_config.NumberColumn(width=130)},
             width="stretch",
             height=fit_height(len(recall_rows)),
@@ -490,7 +782,7 @@ TARGETED VENDOR QUARANTINE LIST:
         )
 
     with st.container(border=True):
-        st.subheader("Per-Ranking Evidence Trail Inspector")
+        st.subheader("Per-ranking evidence trail inspector", anchor="evidence")
         st.caption("Select ANY ranked batch to inspect its full Patient → Vendor → Ward → Consumption Time → Wholesaler trail.")
         selected_evidence_batch = st.selectbox("Inspect Evidence Trail For Ranking:", df_scores['Batch'].tolist())
         selected_row = df_scores[df_scores['Batch'] == selected_evidence_batch].iloc[0]
@@ -516,7 +808,7 @@ TARGETED VENDOR QUARANTINE LIST:
 # TAB 2: GEOGRAPHIC MAP (Thane, Kalyan, Dombivli)
 # ==========================================
 elif view_option == "Geographic Map":
-    st.subheader("Live Outbreak Clusters Across 24 Wards (Thane, Kalyan & Dombivli)")
+    st.subheader("Live outbreak clusters across 24 wards (Thane, Kalyan & Dombivli)")
     st.caption("Red circles scale with confirmed sick cases at each street vendor. Hover over any cluster to inspect Ward, Vendor, and Case details.")
 
     if not sick_patients.empty:
@@ -530,7 +822,7 @@ elif view_option == "Geographic Map":
             data=map_df,
             get_position='[lon, lat]',
             get_radius='radius',
-            get_fill_color='[214, 106, 98, 170]',
+            get_fill_color='[217, 164, 65, 175]',
             pickable=True,
             auto_highlight=True
         )
@@ -548,7 +840,7 @@ elif view_option == "Geographic Map":
 # TAB 3: SUPPLY CHAIN GRAPH (PyVis 3D Network)
 # ==========================================
 elif view_option == "Supply Chain Graph":
-    st.subheader("Multi-Tier Supply Chain Graph (Wholesaler → Batch → Vendor → Patient)")
+    st.subheader("Multi-tier supply chain graph (wholesaler → batch → vendor → patient)")
 
     st.markdown("""
 <div class="legend">
