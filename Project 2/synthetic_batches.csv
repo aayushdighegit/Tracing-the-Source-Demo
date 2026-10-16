@@ -1,5 +1,0 @@
-batch_id,food_item,supplier,is_planted_source
-BATCH-BW-07 (Buckwheat Flour),Kuttu/Buckwheat Dish,Shree Agro Wholesale,True
-BATCH-RC-02 (Basmati Rice),Steamed Basmati Rice,Konkan Grains Co.,False
-BATCH-FL-09 (Wheat Flour),Tandoori Roti / Bread,MahaFoods Ltd.,False
-BATCH-WT-01 (Bottled Water),Mineral Water,AquaPure Beverage,False
