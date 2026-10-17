@@ -24,7 +24,7 @@ def fit_height(n_rows):
 # UI THEME — Plague Inc palette with Cyberpunk-style controls (presentation only, no data logic)
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,800;6..96,900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 :root {
     --bg: #16171b; --panel: #1f2126; --panel-2: #24262c; --line: #33353c;
     --accent: #d9a441; --accent-soft: rgba(217,164,65,0.13); --accent-line: rgba(217,164,65,0.45);
@@ -106,7 +106,12 @@ st.markdown("""
 /* Status bar */
 .statusbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 0 14px 0; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; gap: 12px; }
-.brand .name { font-size: 1.35rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; line-height: 1.1; }
+.brand .name, .login-head h1.wordmark {
+    font-family: 'Bodoni Moda', 'Didot', 'Bodoni 72', serif !important; font-optical-sizing: auto; font-weight: 900 !important;
+    font-size: 2.6rem; line-height: 0.95; letter-spacing: -0.035em; color: var(--accent) !important;
+    transform: scaleY(1.12); transform-origin: left bottom; text-shadow: 0 0 28px rgba(217,164,65,0.25); margin-bottom: 4px;
+}
+.brand .area { margin-top: 2px; }
 .brand .area { font-size: 0.85rem; color: var(--muted); }
 .status { display: flex; align-items: center; gap: 18px; font-family: var(--mono); font-size: 0.85rem; color: var(--muted); }
 .status .live { color: var(--teal); }
@@ -415,6 +420,22 @@ html.tc-cursor-on input[type="text"], html.tc-cursor-on textarea { cursor: text 
 .user-chip .sbx { margin-left: auto; font-family: var(--mono); font-size: .65rem; color: var(--accent); border: 1px solid var(--accent-line); padding: 1px 6px; }
 .st-key-authfx { display: none; }
 
+/* Data directory */
+.dir-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 6px; }
+.dir-card { background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--accent); padding: 14px 18px 16px 18px;
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); animation: rise .5s ease-out both; transition: border-color .2s, box-shadow .2s; }
+.dir-card:hover { border-color: var(--accent-line); box-shadow: 0 0 24px rgba(217,164,65,0.12); }
+.dir-card.wide { grid-column: 1 / -1; }
+.dir-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--accent-line);
+            font-family: var(--mono); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.dir-head b { font-weight: 600; color: #1a1b20; background: var(--accent); padding: 1px 9px; clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%); }
+.dir-card ul { list-style: none; margin: 0; padding: 0; }
+.dir-card li { padding: 6px 0; border-bottom: 1px dashed var(--line); color: var(--text); font-size: .95rem; break-inside: avoid; }
+.dir-card li:last-child { border-bottom: none; }
+.dir-card.wide ul { columns: 4 200px; column-gap: 28px; }
+.dir-card.wide li { font-family: var(--mono); font-size: .86rem; }
+@media (max-width: 900px) { .dir-grid { grid-template-columns: 1fr; } }
+
 /* ===== Light mode (set by the theme toggle; html[data-mode] comes from the page script) ===== */
 html[data-mode="light"] {
     --bg: #f5f1e8; --panel: rgba(255,255,255,0.74); --panel-2: rgba(255,255,255,0.9); --line: #d9d0bf;
@@ -613,6 +634,7 @@ def _render_login(client, store):
 .login-head { text-align: center; margin-bottom: 18px; animation: rise .5s ease-out both; }
 .login-head .kicker { font-family: var(--mono); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
 .login-head h1 { color: var(--text) !important; font-size: 2rem !important; margin: 6px 0 4px 0 !important; padding: 0 !important; }
+.login-head h1.wordmark { font-size: 3rem !important; transform-origin: center bottom; margin: 10px 0 10px 0 !important; }
 .login-head p { color: var(--muted); font-size: .95rem; margin: 0; }
 .login-badge { display: inline-flex; gap: 8px; align-items: center; margin-top: 12px; padding: 4px 12px; font-family: var(--mono); font-size: .75rem;
                color: var(--teal); border: 1px solid var(--teal-line); background: var(--teal-soft); }
@@ -631,7 +653,7 @@ def _render_login(client, store):
         st.markdown("""
 <div class="login-head">
   <div class="kicker">Restricted · public-health officers only</div>
-  <h1>Tracing the Source</h1>
+  <h1 class="wordmark">Tracing the Source</h1>
   <p>Case records are confidential. Verify your registered mobile number to continue.</p>
   <div class="login-badge">● WhatsApp OTP · SMS fallback · powered by MiniMoth</div>
 </div>""", unsafe_allow_html=True)
@@ -1010,13 +1032,14 @@ st.markdown(f"""
 
 NAV_LABELS = {
     "Main Dashboard": ":material/dashboard: Dashboard",
+    "Data Directory": ":material/folder_open: Data",
     "Geographic Map": ":material/map: Map",
     "Supply Chain Graph": ":material/hub: Supply chain",
 }
 with st.container(key="nav"):
     view_option = st.radio(
         "Select View:",
-        ["Main Dashboard", "Geographic Map", "Supply Chain Graph"],
+        ["Main Dashboard", "Data Directory", "Geographic Map", "Supply Chain Graph"],
         format_func=NAV_LABELS.get,
         horizontal=True,
         label_visibility="collapsed"
@@ -1325,6 +1348,29 @@ TARGETED VENDOR QUARANTINE LIST:
 # ==========================================
 # TAB 2: GEOGRAPHIC MAP (Thane, Kalyan, Dombivli)
 # ==========================================
+elif view_option == "Data Directory":
+    st.subheader("Data directory")
+    st.caption("Every name in the simulated outbreak dataset.")
+
+    def name_card(title, names, wide=False, icon=""):
+        items = "".join(f"<li>{html.escape(str(n))}</li>" for n in names)
+        return (f'<div class="dir-card{" wide" if wide else ""}"><div class="dir-head"><span>{icon} {title}</span>'
+                f'<b>{len(names)}</b></div><ul>{items}</ul></div>')
+
+    wholesalers = sorted(df_batches['supplier'].dropna().unique()) if 'supplier' in df_batches.columns else []
+    foods = sorted(df_batches['food_item'].dropna().unique()) if 'food_item' in df_batches.columns else []
+    batches = sorted(df_batches['batch_id'].dropna().unique())
+    wards = sorted(df_vendors['ward'].dropna().unique())
+    vendors = sorted(df_vendors['vendor_id'].dropna().unique())
+    st.markdown(
+        '<div class="dir-grid">'
+        + name_card("Wholesalers", wholesalers, icon="◆")
+        + name_card("Foods", foods, icon="●")
+        + name_card("Food batches", batches, icon="■")
+        + name_card("Wards", wards, wide=True, icon="▲")
+        + name_card("Vendors", vendors, wide=True, icon="▪")
+        + '</div>', unsafe_allow_html=True)
+
 elif view_option == "Geographic Map":
     st.subheader("Live outbreak clusters across 24 wards (Thane, Kalyan & Dombivli)")
     st.caption("Red circles scale with confirmed sick cases at each street vendor. Hover over any cluster to inspect Ward, Vendor, and Case details.")
