@@ -7,3 +7,7 @@ lib/
 .streamlit/secrets.toml
 .streamlit/.auth_sessions.json
 .streamlit/.auth_sessions.json.tmp
+
+# Live case reports submitted from the dashboard (runtime data)
+live_reports.csv
+live_reports.csv.tmp

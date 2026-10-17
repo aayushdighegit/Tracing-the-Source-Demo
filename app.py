@@ -11,6 +11,8 @@ import time
 import html
 import altair as alt
 from generate_data import generate_seeded_outbreak_data
+from live_reports import load_live, append_live, clear_live, build_report, next_patient_id
+from datetime import time as clock_time
 from auth import (MiniMothClient, MiniMothError, SessionStore, ensure_fresh, end_session, normalize_phone,
                   parse_allowlist, mask_phone, ERROR_MESSAGES, SESSION_COOKIE, HANDLE_MAX_AGE_S)
 
@@ -454,6 +456,15 @@ html.tc-cursor-on input[type="text"], html.tc-cursor-on textarea { cursor: text 
 .dir-card.wide li { font-family: var(--mono); font-size: .86rem; }
 @media (max-width: 900px) { .dir-grid { grid-template-columns: 1fr; } }
 
+/* Hotspot rankings */
+.hs-title { display: flex; justify-content: space-between; align-items: center; font-family: var(--mono); font-size: .78rem; letter-spacing: .1em;
+            text-transform: uppercase; color: var(--accent); margin: 2px 0 8px 0; }
+.hs-title b { font-weight: 500; color: var(--muted); letter-spacing: .04em; text-transform: none; }
+.wrap-table.hotspot td { padding-top: 9px; padding-bottom: 9px; }
+.wrap-table.hotspot tbody tr:first-child td { background: var(--accent-soft); }
+.hs-sub { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+.hs-star { color: var(--accent); font-size: .85rem; }
+
 /* ===== Light mode (set by the theme toggle; html[data-mode] comes from the page script) ===== */
 html[data-mode="light"] {
     --bg: #f5f1e8; --panel: rgba(255,255,255,0.74); --panel-2: rgba(255,255,255,0.9); --line: #d9d0bf;
@@ -777,15 +788,11 @@ def load_and_prepare_data():
         return generate_seeded_outbreak_data(42)
     return b, v, p
 
-if 'raw_patients_df' not in st.session_state:
-    b_df, v_df, p_df = load_and_prepare_data()
-    st.session_state.batches_df = b_df
-    st.session_state.vendors_df = v_df
-    st.session_state.raw_patients_df = p_df
-
-df_batches = st.session_state.batches_df
-df_vendors = st.session_state.vendors_df
-raw_patients = st.session_state.raw_patients_df
+df_batches, df_vendors, seeded_patients = load_and_prepare_data()
+# Live reports from the sidebar form are saved to live_reports.csv and merged in on every run,
+# so they change the data for everyone and survive reloads, while the seeded files stay untouched.
+live_reports = load_live()
+raw_patients = pd.concat([seeded_patients, live_reports], ignore_index=True) if len(live_reports) else seeded_patients
 
 # DATA CLEANING PIPELINE (Deduplicate & strip missing vendor records)
 total_raw_records = len(raw_patients)
@@ -932,25 +939,41 @@ current_day = st.sidebar.slider(
 
 st.sidebar.divider()
 st.sidebar.subheader("Live patient report input")
-st.sidebar.caption("Inject new synthetic case reports dynamically.")
-with st.sidebar.form("live_intake_form"):
-    v_choice = st.selectbox("Vendor Visited", sorted(df_vendors['vendor_id'].unique()))
-    s_choice = st.radio("Health Status", ["Sick", "Healthy"], horizontal=True)
-    late_flag = st.checkbox("Delayed / Late Report?")
-    if st.form_submit_button("Submit Case Report"):
-        new_pid = f"Patient_{1000 + len(raw_patients) + 1}"
-        new_entry = pd.DataFrame([{
-            'patient_id': new_pid,
-            'reported_vendor': v_choice,
-            'status': s_choice,
-            'consumption_time': f"2026-10-1{1+current_day} 14:30",
-            'eat_day': max(1, current_day - 1) if late_flag else current_day,
-            'report_day': current_day,
-            'is_late_report': late_flag,
-            'noisy_recall': False
-        }])
-        st.session_state.raw_patients_df = pd.concat([raw_patients, new_entry], ignore_index=True)
-        st.rerun()
+st.sidebar.caption(f"Saved straight into the dataset: every ranking, chart and list updates. Reported on Day {current_day}.")
+with st.sidebar.form("live_intake_form", clear_on_submit=True):
+    v_choice = st.selectbox("Vendor visited", sorted(df_vendors['vendor_id'].unique()))
+    s_choice = st.radio("Health status", ["Sick", "Healthy"], horizontal=True)
+    eat_col, time_col = st.columns(2)
+    eat_day_choice = eat_col.selectbox("Day eaten", list(range(1, current_day + 1)), index=current_day - 1,
+                                       format_func=lambda d: f"Day {d}")
+    eat_time_choice = time_col.time_input("Time eaten", value=clock_time(13, 0), step=900)
+    st.caption("Eaten on an earlier day than it's reported = counted as a late report.")
+    if st.form_submit_button("Submit case report"):
+        try:
+            new_pid = next_patient_id(raw_patients['patient_id'])
+            append_live(build_report(new_pid, v_choice, s_choice, eat_day_choice, eat_time_choice, current_day))
+            st.session_state.live_notice = f"{new_pid} added ({s_choice.lower()} at {v_choice}). Rankings updated."
+            st.rerun()
+        except (ValueError, RuntimeError, OSError) as e:
+            st.error(f"Couldn't save the report: {e}")
+if st.session_state.get("live_notice"):
+    st.toast(st.session_state.pop("live_notice"), icon="✅")
+
+with st.sidebar.expander(f"Live reports added: {len(live_reports)}"):
+    if len(live_reports):
+        for _, r in live_reports.tail(5).iloc[::-1].iterrows():
+            st.markdown(f"<div class='log'>{html.escape(str(r['patient_id']))} · {html.escape(str(r['status']))} · "
+                        f"{html.escape(str(r['reported_vendor']))}<b>Day {int(r['eat_day'])}→{int(r['report_day'])}</b></div>",
+                        unsafe_allow_html=True)
+        if len(live_reports) > 5:
+            st.caption(f"…and {len(live_reports) - 5} more.")
+        if st.button("Reset to original data", use_container_width=True,
+                     help="Removes every live report and goes back to the seeded dataset."):
+            clear_live()
+            st.session_state.live_notice = "Live reports cleared. Back to the original seeded data."
+            st.rerun()
+    else:
+        st.caption("None yet. Submitted reports appear here.")
 
 st.sidebar.divider()
 st.sidebar.subheader("Ingestion & cleaning log")
@@ -1221,6 +1244,63 @@ if view_option == "Main Dashboard":
   <tbody>{top3_rows}</tbody>
 </table>
 """, unsafe_allow_html=True)
+
+    # HOTSPOTS: which wards and vendors carry the most confirmed cases (up to the selected day)
+    with st.container(border=True):
+        st.subheader("Hotspots: most affected wards & vendors", anchor="hotspots")
+        st.caption("Ranked by confirmed sick cases, then by attack rate (share of reports from there that are sick). "
+                   "★ = linked to the top-1 suspect batch.")
+        vendor_ward = df_vendors.drop_duplicates('vendor_id')[['vendor_id', 'ward']]
+        suspect_vendor_ids = set(df_vendors.loc[df_vendors['batch_received'] == prime_suspect, 'vendor_id'])
+        exposure = available_reports.merge(vendor_ward, left_on='reported_vendor', right_on='vendor_id', how='inner')
+        exposure['sick'] = exposure['status'].eq('Sick')
+        exposure['suspect_sick'] = exposure['sick'] & exposure['reported_vendor'].isin(suspect_vendor_ids)
+
+        def rank_hotspots(group_col):
+            g = exposure.groupby(group_col).agg(sick=('sick', 'sum'), reports=('sick', 'size'), suspect=('suspect_sick', 'sum')).reset_index()
+            g['attack'] = (g['sick'] + 1) / (g['reports'] + 2) * 100   # same Laplace smoothing as the batch engine
+            g = g.sort_values(['sick', 'attack'], ascending=False).reset_index(drop=True)
+            g.insert(0, 'rank', [f"#{i + 1}" for i in range(len(g))])
+            return g
+
+        ward_rank, vendor_rank = rank_hotspots('ward'), rank_hotspots('reported_vendor')
+        vendor_rank = vendor_rank.merge(vendor_ward, left_on='reported_vendor', right_on='vendor_id', how='left')
+
+        def hotspot_table(df, name_col, sub_col=None, n=8):
+            rows = ""
+            for _, r in df.head(n).iterrows():
+                name = html.escape(str(r[name_col]))
+                sub = f"<div class='hs-sub'>{html.escape(str(r[sub_col]))}</div>" if sub_col else ""
+                star = " <span class='hs-star' title='Linked to the top-1 suspect batch'>★</span>" if r['suspect'] > 0 else ""
+                rows += (f"<tr><td><span class='rank-chip {'first' if r['rank'] == '#1' else ''}'>{r['rank']}</span></td>"
+                         f"<td>{name}{star}{sub}</td><td class='num'>{int(r['sick'])}</td><td class='num'>{int(r['reports'])}</td>"
+                         f"<td><div class='risk'><span class='mono'>{r['attack']:.0f}%</span><div class='risk-track'>"
+                         f"<div class='risk-fill' style='width:{min(r['attack'], 100):.0f}%'></div></div></div></td></tr>")
+            return ('<table class="wrap-table hotspot"><thead><tr><th>Rank</th><th>' + ('Ward' if not sub_col else 'Vendor')
+                    + '</th><th class="num">Sick</th><th class="num">Reports</th><th>Attack rate</th></tr></thead><tbody>'
+                    + rows + '</tbody></table>')
+
+        ward_col, vendor_col = st.columns(2, gap="medium")
+        with ward_col:
+            st.markdown(f"<div class='hs-title'>▲ Ward ranking <b>{len(ward_rank)} wards</b></div>", unsafe_allow_html=True)
+            st.markdown(hotspot_table(ward_rank, 'ward'), unsafe_allow_html=True)
+        with vendor_col:
+            st.markdown(f"<div class='hs-title'>▪ Vendor ranking <b>{len(vendor_rank)} vendors</b></div>", unsafe_allow_html=True)
+            st.markdown(hotspot_table(vendor_rank, 'reported_vendor', sub_col='ward'), unsafe_allow_html=True)
+        with st.expander("Show the full ward and vendor rankings"):
+            full_w, full_v = st.columns(2, gap="medium")
+            full_w.dataframe(
+                ward_rank[['rank', 'ward', 'sick', 'reports', 'attack']],
+                column_config={"rank": st.column_config.TextColumn("Rank", width=60), "ward": st.column_config.TextColumn("Ward"),
+                               "sick": st.column_config.NumberColumn("Sick", width=60), "reports": st.column_config.NumberColumn("Reports", width=75),
+                               "attack": st.column_config.ProgressColumn("Attack rate", format="%.0f%%", min_value=0, max_value=100, width=120)},
+                width="stretch", height=fit_height(len(ward_rank)), row_height=TABLE_ROW_H, hide_index=True)
+            full_v.dataframe(
+                vendor_rank[['rank', 'reported_vendor', 'ward', 'sick', 'attack']],
+                column_config={"rank": st.column_config.TextColumn("Rank", width=60), "reported_vendor": st.column_config.TextColumn("Vendor", width=95),
+                               "ward": st.column_config.TextColumn("Ward"), "sick": st.column_config.NumberColumn("Sick", width=60),
+                               "attack": st.column_config.ProgressColumn("Attack rate", format="%.0f%%", min_value=0, max_value=100, width=120)},
+                width="stretch", height=fit_height(len(vendor_rank)), row_height=TABLE_ROW_H, hide_index=True)
 
     with st.container(border=True):
         st.subheader("Simple baseline (raw case count & co-occurrence)")
