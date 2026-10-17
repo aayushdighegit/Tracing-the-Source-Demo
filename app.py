@@ -6,9 +6,13 @@ import streamlit.components.v1 as components
 from pyvis.network import Network
 import pydeck as pdk
 import os
+import re
+import time
 import html
 import altair as alt
 from generate_data import generate_seeded_outbreak_data
+from auth import (MiniMothClient, MiniMothError, SessionStore, ensure_fresh, end_session, normalize_phone,
+                  parse_allowlist, mask_phone, ERROR_MESSAGES, SESSION_COOKIE, HANDLE_MAX_AGE_S)
 
 st.set_page_config(layout="wide", page_title="Tracing the Source | Outbreak Intelligence")
 
@@ -403,6 +407,14 @@ html.tc-cursor-on input[type="text"], html.tc-cursor-on textarea { cursor: text 
 @keyframes blink { 50% { opacity: 0.2; } }
 @media (prefers-reduced-motion: reduce) { .sitrep-run { white-space: normal; flex-wrap: wrap; animation: none; padding: 9px 12px; } }
 
+/* Signed-in user chip (sidebar) */
+.user-chip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid var(--teal-line); background: var(--teal-soft); }
+.user-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 3px var(--teal-soft); }
+.user-chip .who { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.user-chip .num { font-family: var(--mono); font-size: .88rem; color: var(--text); }
+.user-chip .sbx { margin-left: auto; font-family: var(--mono); font-size: .65rem; color: var(--accent); border: 1px solid var(--accent-line); padding: 1px 6px; }
+.st-key-authfx { display: none; }
+
 /* ===== Light mode (set by the theme toggle; html[data-mode] comes from the page script) ===== */
 html[data-mode="light"] {
     --bg: #f5f1e8; --panel: rgba(255,255,255,0.74); --panel-2: rgba(255,255,255,0.9); --line: #d9d0bf;
@@ -445,6 +457,271 @@ html[data-mode="light"] .mode-toggle .to-dark { display: inline-flex; }
 .mode-toggle span { display: inline-flex; align-items: center; gap: 8px; }
 </style>
 """, unsafe_allow_html=True)
+
+# Page script: light/dark mode, targeting cursor and pixel trail (runs before sign-in so the login screen is themed too)
+# Targeting cursor (UI only): an amber reticle that locks onto buttons and cards on hover
+CURSOR_JS = r"""
+<script>
+(function () {
+  const w = window.parent, d = w.document;
+  if (!d.getElementById('tc-theme-script')) {
+    const t = d.createElement('script');
+    t.id = 'tc-theme-script';
+    t.textContent = `(function () {
+      const KEY = 'stActiveTheme-' + location.pathname + '-v2';
+      let mode = null;
+      try { mode = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+      if (mode !== 'Light' && mode !== 'Dark') {  /* first visit (or 'System'): start in dark mode */
+        localStorage.setItem(KEY, JSON.stringify('Dark')); sessionStorage.removeItem('tc-splash-seen'); location.reload(); return;
+      }
+      document.documentElement.setAttribute('data-mode', mode.toLowerCase());
+      document.addEventListener('click', function (e) {
+        if (!e.target.closest || !e.target.closest('.mode-toggle')) return;
+        localStorage.setItem(KEY, JSON.stringify(mode === 'Dark' ? 'Light' : 'Dark'));
+        location.reload();
+      });
+    })();`;
+    d.head.appendChild(t);
+  }
+  if (d.getElementById('tc-cursor-script') || w.matchMedia('(pointer: coarse)').matches) return;
+  const s = d.createElement('script');
+  s.id = 'tc-cursor-script';
+  s.textContent = `(function () {
+    const d = document, root = d.createElement('div');
+    root.id = 'tc-cursor';
+    root.innerHTML = '<div class="tc-ring"><i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i></div>' +
+                     '<div class="tc-chev"><b class="u"></b><b class="r"></b><b class="d"></b><b class="l"></b></div>' +
+                     '<div class="tc-dot"><i></i></div>';
+    d.body.appendChild(root);
+    d.documentElement.classList.add('tc-cursor-on');
+    const ring = root.querySelector('.tc-ring'), dot = root.querySelector('.tc-dot'), chev = root.querySelector('.tc-chev');
+    const LOCK = 'button, a.cp-btn, .st-key-nav label, [data-baseweb="select"], [role="slider"], .kpi, .runner, summary';
+    let mx = -100, my = -100, rx = -100, ry = -100, rw = 34, rh = 34, target = null;
+    function setTarget(t) { if (t === target) return; target = t; root.classList.toggle('lock', !!t); }
+    d.addEventListener('mousemove', function (e) {
+      mx = e.clientX; my = e.clientY;
+      const overFrame = e.target.tagName === 'IFRAME' || e.target.tagName === 'CANVAS';
+      root.style.opacity = overFrame ? 0 : 1;
+      d.documentElement.classList.toggle('tc-cursor-on', !overFrame);
+      setTarget(e.target.closest ? e.target.closest(LOCK) : null);
+    }, { passive: true });
+    d.addEventListener('mouseout', function (e) { if (!e.relatedTarget) root.style.opacity = 0; });
+    d.addEventListener('mousedown', function () { root.classList.add('down'); });
+    d.addEventListener('mouseup', function () { root.classList.remove('down'); });
+    (function loop() {
+      let cx = mx, cy = my, tw = 34, th = 34;
+      if (target && target.isConnected) {
+        const r = target.getBoundingClientRect(), pad = 7;
+        tw = r.width + pad * 2; th = r.height + pad * 2; cx = r.left + r.width / 2; cy = r.top + r.height / 2;
+      } else if (target) { setTarget(null); }
+      rx += (cx - rx) * 0.24; ry += (cy - ry) * 0.24; rw += (tw - rw) * 0.24; rh += (th - rh) * 0.24;
+      ring.style.width = rw + 'px'; ring.style.height = rh + 'px';
+      ring.style.transform = 'translate(' + (rx - rw / 2) + 'px,' + (ry - rh / 2) + 'px)';
+      dot.style.transform = chev.style.transform = 'translate(' + mx + 'px,' + my + 'px)';
+      requestAnimationFrame(loop);
+    })();
+
+    /* Pixel trail: background grid cells light up around the cursor in a ragged stair-step and fade out */
+    const host = d.querySelector('[data-testid="stAppViewContainer"]') || d.body;
+    const cv = d.createElement('canvas');
+    cv.id = 'tc-pixels';
+    cv.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:-1;';
+    host.insertBefore(cv, host.firstChild);
+    const ctx = cv.getContext('2d'), CELL = 24, RADIUS = 4, cells = new Map();
+    let dpr = 1, running = false, lastCell = '';
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    resize(); window.addEventListener('resize', resize);
+    function light(cx, cy) {
+      for (let dx = -RADIUS; dx <= RADIUS; dx++) {
+        for (let dy = -RADIUS; dy <= RADIUS; dy++) {
+          const dist = Math.hypot(dx, dy);
+          if (dist > RADIUS + Math.random() * 1.2 - 0.6) continue;
+          const key = (cx + dx) + ',' + (cy + dy);
+          const strength = Math.max(0, 1 - dist / (RADIUS + 0.8)) * (0.55 + Math.random() * 0.45);
+          const cell = cells.get(key);
+          if (!cell || cell.a < strength) cells.set(key, { a: strength, teal: cell ? cell.teal : Math.random() < 0.12 });
+        }
+      }
+      if (!running) { running = true; requestAnimationFrame(draw); }
+    }
+    function draw() {
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      cells.forEach(function (c, key) {
+        const p = key.split(','), x = p[0] * CELL, y = p[1] * CELL;
+        ctx.fillStyle = c.teal ? 'rgba(124,196,192,' + (c.a * 0.42) + ')' : 'rgba(217,164,65,' + (c.a * 0.38) + ')';
+        ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+        if (c.a > 0.55) {
+          ctx.strokeStyle = c.teal ? 'rgba(124,196,192,' + (c.a * 0.7) + ')' : 'rgba(240,200,120,' + (c.a * 0.6) + ')';
+          ctx.strokeRect(x + 1.5, y + 1.5, CELL - 3, CELL - 3);
+        }
+        c.a *= 0.93;
+        if (c.a < 0.02) cells.delete(key);
+      });
+      if (cells.size) requestAnimationFrame(draw); else running = false;
+    }
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      d.addEventListener('mousemove', function (e) {
+        if (e.target.tagName === 'IFRAME' || e.target.tagName === 'CANVAS' && e.target !== cv) return;
+        const cx = Math.floor(e.clientX / CELL), cy = Math.floor(e.clientY / CELL), key = cx + ',' + cy;
+        if (key === lastCell) return;
+        lastCell = key; light(cx, cy);
+      }, { passive: true });
+    }
+  })();`;
+  d.head.appendChild(s);
+})();
+</script>
+"""
+with st.container(key="cursorfx"):
+    components.html(CURSOR_JS, height=0)
+
+# 0. ACCESS CONTROL: phone OTP sign-in via MiniMoth (see auth.py). Off when no API key is configured.
+def _setting(name):
+    try:
+        if name in st.secrets:
+            return st.secrets[name]
+    except Exception:
+        pass
+    return os.environ.get(name)
+
+MM_API_KEY = _setting("MINIMOTH_API_KEY")
+AUTH_ENABLED = bool(MM_API_KEY)
+AUTHORIZED_PHONES = parse_allowlist(_setting("AUTHORIZED_PHONES") or "")
+
+@st.cache_resource
+def _auth_session_store():
+    return SessionStore()
+
+def _cookie_js(value, max_age):
+    # Only an opaque random handle goes to the browser, never the MiniMoth tokens
+    with st.container(key="authfx"):
+        components.html(f"""<script>
+        const p = window.parent, secure = p.location.protocol === 'https:' ? '; Secure' : '';
+        p.document.cookie = '{SESSION_COOKIE}={value}; path=/; max-age={max_age}; SameSite=Strict' + secure;
+        </script>""", height=0)
+
+def _render_login(client, store):
+    ss = st.session_state
+    st.markdown("""
+<style>
+[data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"], [data-testid="stExpandSidebarButton"] { display: none !important; }
+.block-container { max-width: 520px !important; padding-top: 9vh !important; }
+.login-head { text-align: center; margin-bottom: 18px; animation: rise .5s ease-out both; }
+.login-head .kicker { font-family: var(--mono); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+.login-head h1 { color: var(--text) !important; font-size: 2rem !important; margin: 6px 0 4px 0 !important; padding: 0 !important; }
+.login-head p { color: var(--muted); font-size: .95rem; margin: 0; }
+.login-badge { display: inline-flex; gap: 8px; align-items: center; margin-top: 12px; padding: 4px 12px; font-family: var(--mono); font-size: .75rem;
+               color: var(--teal); border: 1px solid var(--teal-line); background: var(--teal-soft); }
+.st-key-login [data-testid="stForm"] { background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--accent);
+               backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 22px 22px 18px 22px; animation: rise .55s .08s ease-out both; }
+.st-key-login [data-testid="stFormSubmitButton"] button { width: 100%; }
+.login-foot { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 14px; }
+.login-foot a { color: var(--accent); }
+.sandbox-note { font-family: var(--mono); font-size: .8rem; color: var(--accent); border: 1px dashed var(--accent-line); background: var(--accent-soft); padding: 8px 12px; margin-bottom: 12px; text-align: center; }
+</style>""", unsafe_allow_html=True)
+
+    if ss.pop("auth_clear_cookie", False):
+        _cookie_js("", 0)
+
+    with st.container(key="login"):
+        st.markdown("""
+<div class="login-head">
+  <div class="kicker">Restricted · public-health officers only</div>
+  <h1>Tracing the Source</h1>
+  <p>Case records are confidential. Verify your registered mobile number to continue.</p>
+  <div class="login-badge">● WhatsApp OTP · SMS fallback · powered by MiniMoth</div>
+</div>""", unsafe_allow_html=True)
+        if client.is_sandbox:
+            st.markdown('<div class="sandbox-note">Sandbox key: no real message is sent. The code is always 000000.</div>', unsafe_allow_html=True)
+        if ss.get("auth_notice"):
+            st.info(ss.pop("auth_notice"))
+
+        if ss.get("auth_stage") != "code":
+            with st.form("otp_phone"):
+                phone_in = st.text_input("Mobile number", placeholder="+91 98765 43210")
+                if st.form_submit_button("Send verification code"):
+                    phone = normalize_phone(phone_in)
+                    if not phone:
+                        st.error(ERROR_MESSAGES["INVALID_PHONE"])
+                    else:
+                        try:
+                            # Numbers off the allow-list get the same screen but no code is sent,
+                            # so the form can't be used to discover which numbers are authorised.
+                            if not AUTHORIZED_PHONES or phone in AUTHORIZED_PHONES:
+                                client.send_otp(phone)
+                            ss.auth_pending_phone, ss.auth_sent_at, ss.auth_stage = phone, time.time(), "code"
+                            st.rerun()
+                        except MiniMothError as e:
+                            st.error(e.friendly)
+        else:
+            phone = ss.get("auth_pending_phone")
+            st.caption(f"Code sent to {mask_phone(phone)} via WhatsApp (SMS if WhatsApp fails). It's valid for 10 minutes.")
+            with st.form("otp_code"):
+                code = st.text_input("6-digit code", max_chars=6, placeholder="••••••")
+                if st.form_submit_button("Verify & enter"):
+                    code = (code or "").strip()
+                    if not re.fullmatch(r"\d{6}", code):
+                        st.error(ERROR_MESSAGES["INVALID_OTP_CODE"])
+                    elif AUTHORIZED_PHONES and phone not in AUTHORIZED_PHONES:
+                        st.error(ERROR_MESSAGES["INVALID_OTP"])
+                    else:
+                        try:
+                            tokens = client.verify_otp(phone, code)
+                            ss.auth_handle = store.create(phone, tokens)
+                            ss.auth_cookie_pending = True
+                            for k in ("auth_stage", "auth_pending_phone", "auth_sent_at"):
+                                ss.pop(k, None)
+                            st.rerun()
+                        except MiniMothError as e:
+                            st.error(e.friendly)
+            left, right = st.columns(2)
+            wait = int(30 - (time.time() - ss.get("auth_sent_at", 0)))
+            if left.button("Change number", use_container_width=True):
+                ss.auth_stage = "phone"
+                st.rerun()
+            if right.button("Resend code" if wait <= 0 else f"Resend in {wait}s", disabled=wait > 0, use_container_width=True):
+                try:
+                    if not AUTHORIZED_PHONES or phone in AUTHORIZED_PHONES:
+                        client.send_otp(phone)
+                    ss.auth_sent_at = time.time()
+                    st.rerun()
+                except MiniMothError as e:
+                    st.error(e.friendly)
+        st.markdown('<div class="login-foot">Simulation for public-health decision support · synthetic data</div>', unsafe_allow_html=True)
+
+if AUTH_ENABLED:
+    _mm_client = MiniMothClient(MM_API_KEY)
+    _auth_store = _auth_session_store()
+    _handle = st.session_state.get("auth_handle") or st.context.cookies.get(SESSION_COOKIE)
+    _session = ensure_fresh(_mm_client, _auth_store, _handle) if _handle else None
+    if _session and AUTHORIZED_PHONES and _session["phone"] not in AUTHORIZED_PHONES:
+        end_session(_mm_client, _auth_store, _handle)   # number was removed from the allow-list
+        _session = None
+    if not _session:
+        if st.session_state.pop("auth_handle", None):
+            st.session_state.auth_notice = ERROR_MESSAGES["SESSION_EXPIRED"]
+        _render_login(_mm_client, _auth_store)
+        st.stop()
+    st.session_state.auth_handle = _handle
+    if st.session_state.pop("auth_cookie_pending", False):
+        _cookie_js(_handle, HANDLE_MAX_AGE_S)
+    st.sidebar.markdown(f"""
+<div class="user-chip"><span class="dot"></span><div><div class="who">Signed in</div><div class="num">{mask_phone(_session['phone'])}</div></div>
+{'<span class="sbx">SANDBOX</span>' if _mm_client.is_sandbox else ''}</div>""", unsafe_allow_html=True)
+    if not AUTHORIZED_PHONES:
+        st.sidebar.caption("⚠ No allow-list set: any verified number can sign in. Set AUTHORIZED_PHONES.")
+    if st.sidebar.button("Log out", use_container_width=True):
+        end_session(_mm_client, _auth_store, _handle)
+        st.session_state.pop("auth_handle", None)
+        st.session_state.auth_clear_cookie = True
+        st.rerun()
+    st.sidebar.divider()
+else:
+    st.sidebar.caption("Open demo mode: officer sign-in (MiniMoth OTP) switches on when MINIMOTH_API_KEY is configured.")
 
 # 1. INGEST & CLEAN SYNTHETIC CASE REPORTS (RUBRIC OBJECTIVE 1)
 @st.cache_data
@@ -730,125 +1007,6 @@ st.markdown(f"""
     <button class="mode-toggle" type="button" title="Switch light / dark mode"><span class="to-light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg> Light</span><span class="to-dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg> Dark</span></button></div>
 </div>
 """, unsafe_allow_html=True)
-# Targeting cursor (UI only): an amber reticle that locks onto buttons and cards on hover
-CURSOR_JS = r"""
-<script>
-(function () {
-  const w = window.parent, d = w.document;
-  if (!d.getElementById('tc-theme-script')) {
-    const t = d.createElement('script');
-    t.id = 'tc-theme-script';
-    t.textContent = `(function () {
-      const KEY = 'stActiveTheme-' + location.pathname + '-v2';
-      let mode = null;
-      try { mode = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-      if (mode !== 'Light' && mode !== 'Dark') {  /* first visit (or 'System'): start in dark mode */
-        localStorage.setItem(KEY, JSON.stringify('Dark')); sessionStorage.removeItem('tc-splash-seen'); location.reload(); return;
-      }
-      document.documentElement.setAttribute('data-mode', mode.toLowerCase());
-      document.addEventListener('click', function (e) {
-        if (!e.target.closest || !e.target.closest('.mode-toggle')) return;
-        localStorage.setItem(KEY, JSON.stringify(mode === 'Dark' ? 'Light' : 'Dark'));
-        location.reload();
-      });
-    })();`;
-    d.head.appendChild(t);
-  }
-  if (d.getElementById('tc-cursor-script') || w.matchMedia('(pointer: coarse)').matches) return;
-  const s = d.createElement('script');
-  s.id = 'tc-cursor-script';
-  s.textContent = `(function () {
-    const d = document, root = d.createElement('div');
-    root.id = 'tc-cursor';
-    root.innerHTML = '<div class="tc-ring"><i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i></div>' +
-                     '<div class="tc-chev"><b class="u"></b><b class="r"></b><b class="d"></b><b class="l"></b></div>' +
-                     '<div class="tc-dot"><i></i></div>';
-    d.body.appendChild(root);
-    d.documentElement.classList.add('tc-cursor-on');
-    const ring = root.querySelector('.tc-ring'), dot = root.querySelector('.tc-dot'), chev = root.querySelector('.tc-chev');
-    const LOCK = 'button, a.cp-btn, .st-key-nav label, [data-baseweb="select"], [role="slider"], .kpi, .runner, summary';
-    let mx = -100, my = -100, rx = -100, ry = -100, rw = 34, rh = 34, target = null;
-    function setTarget(t) { if (t === target) return; target = t; root.classList.toggle('lock', !!t); }
-    d.addEventListener('mousemove', function (e) {
-      mx = e.clientX; my = e.clientY;
-      const overFrame = e.target.tagName === 'IFRAME' || e.target.tagName === 'CANVAS';
-      root.style.opacity = overFrame ? 0 : 1;
-      d.documentElement.classList.toggle('tc-cursor-on', !overFrame);
-      setTarget(e.target.closest ? e.target.closest(LOCK) : null);
-    }, { passive: true });
-    d.addEventListener('mouseout', function (e) { if (!e.relatedTarget) root.style.opacity = 0; });
-    d.addEventListener('mousedown', function () { root.classList.add('down'); });
-    d.addEventListener('mouseup', function () { root.classList.remove('down'); });
-    (function loop() {
-      let cx = mx, cy = my, tw = 34, th = 34;
-      if (target && target.isConnected) {
-        const r = target.getBoundingClientRect(), pad = 7;
-        tw = r.width + pad * 2; th = r.height + pad * 2; cx = r.left + r.width / 2; cy = r.top + r.height / 2;
-      } else if (target) { setTarget(null); }
-      rx += (cx - rx) * 0.24; ry += (cy - ry) * 0.24; rw += (tw - rw) * 0.24; rh += (th - rh) * 0.24;
-      ring.style.width = rw + 'px'; ring.style.height = rh + 'px';
-      ring.style.transform = 'translate(' + (rx - rw / 2) + 'px,' + (ry - rh / 2) + 'px)';
-      dot.style.transform = chev.style.transform = 'translate(' + mx + 'px,' + my + 'px)';
-      requestAnimationFrame(loop);
-    })();
-
-    /* Pixel trail: background grid cells light up around the cursor in a ragged stair-step and fade out */
-    const host = d.querySelector('[data-testid="stAppViewContainer"]') || d.body;
-    const cv = d.createElement('canvas');
-    cv.id = 'tc-pixels';
-    cv.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:-1;';
-    host.insertBefore(cv, host.firstChild);
-    const ctx = cv.getContext('2d'), CELL = 24, RADIUS = 4, cells = new Map();
-    let dpr = 1, running = false, lastCell = '';
-    function resize() {
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
-      cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-    resize(); window.addEventListener('resize', resize);
-    function light(cx, cy) {
-      for (let dx = -RADIUS; dx <= RADIUS; dx++) {
-        for (let dy = -RADIUS; dy <= RADIUS; dy++) {
-          const dist = Math.hypot(dx, dy);
-          if (dist > RADIUS + Math.random() * 1.2 - 0.6) continue;
-          const key = (cx + dx) + ',' + (cy + dy);
-          const strength = Math.max(0, 1 - dist / (RADIUS + 0.8)) * (0.55 + Math.random() * 0.45);
-          const cell = cells.get(key);
-          if (!cell || cell.a < strength) cells.set(key, { a: strength, teal: cell ? cell.teal : Math.random() < 0.12 });
-        }
-      }
-      if (!running) { running = true; requestAnimationFrame(draw); }
-    }
-    function draw() {
-      ctx.clearRect(0, 0, innerWidth, innerHeight);
-      cells.forEach(function (c, key) {
-        const p = key.split(','), x = p[0] * CELL, y = p[1] * CELL;
-        ctx.fillStyle = c.teal ? 'rgba(124,196,192,' + (c.a * 0.42) + ')' : 'rgba(217,164,65,' + (c.a * 0.38) + ')';
-        ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
-        if (c.a > 0.55) {
-          ctx.strokeStyle = c.teal ? 'rgba(124,196,192,' + (c.a * 0.7) + ')' : 'rgba(240,200,120,' + (c.a * 0.6) + ')';
-          ctx.strokeRect(x + 1.5, y + 1.5, CELL - 3, CELL - 3);
-        }
-        c.a *= 0.93;
-        if (c.a < 0.02) cells.delete(key);
-      });
-      if (cells.size) requestAnimationFrame(draw); else running = false;
-    }
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      d.addEventListener('mousemove', function (e) {
-        if (e.target.tagName === 'IFRAME' || e.target.tagName === 'CANVAS' && e.target !== cv) return;
-        const cx = Math.floor(e.clientX / CELL), cy = Math.floor(e.clientY / CELL), key = cx + ',' + cy;
-        if (key === lastCell) return;
-        lastCell = key; light(cx, cy);
-      }, { passive: true });
-    }
-  })();`;
-  d.head.appendChild(s);
-})();
-</script>
-"""
-with st.container(key="cursorfx"):
-    components.html(CURSOR_JS, height=0)
 
 NAV_LABELS = {
     "Main Dashboard": ":material/dashboard: Dashboard",
