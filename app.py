@@ -633,7 +633,9 @@ AUTHORIZED_PHONES = parse_allowlist(_setting("AUTHORIZED_PHONES") or "")
 
 @st.cache_resource
 def _auth_session_store():
-    return SessionStore()
+    # Saved to a git-ignored file so a server restart or redeploy doesn't sign officers out
+    return SessionStore(os.environ.get("AUTH_SESSIONS_FILE")
+                        or os.path.join(os.path.dirname(os.path.abspath(__file__)), ".streamlit", ".auth_sessions.json"))
 
 def _cookie_js(value, max_age):
     # Only an opaque random handle goes to the browser, never the MiniMoth tokens

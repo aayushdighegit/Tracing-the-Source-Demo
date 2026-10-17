@@ -130,10 +130,40 @@ def test_logout_revokes_at_minimoth_and_forgets_locally():
     assert mm.logged_out == ["at1"] and store.get(handle) is None
 
 
+def test_sessions_survive_a_server_restart(tmp_path):
+    path = str(tmp_path / "sessions.json")
+    mm = FakeMiniMoth()
+    handle = SessionStore(path).create(OFFICER, mm.verify_otp(OFFICER, "000000"))
+    restarted = SessionStore(path)                                 # new process reading the same file
+    assert restarted.get(handle)["phone"] == OFFICER
+    restarted.delete(handle)
+    assert SessionStore(path).get(handle) is None                  # logout is persisted too
+
+
+def test_expiry_parsing_handles_common_formats():
+    from auth import parse_expiry
+    assert parse_expiry("2030-01-01T00:00:00Z") == parse_expiry("2030-01-01T00:00:00")   # naive = UTC
+    assert parse_expiry("2030-01-01T05:30:00+05:30") == parse_expiry("2030-01-01T00:00:00Z")
+    assert parse_expiry(1893456000) == parse_expiry(1893456000000) == 1893456000            # s and ms
+
+
+def test_brief_outage_does_not_sign_officer_out():
+    mm, store = FakeMiniMoth(), SessionStore()
+    handle = store.create(OFFICER, mm.verify_otp(OFFICER, "000000"))
+    store.update(handle, expires_at=time.time() + 5)
+
+    def down(token):
+        raise MiniMothError("HTTP_503", status=503)
+
+    mm.refresh = down
+    assert ensure_fresh(mm, store, handle) is not None and store.get(handle)
+
+
 # ---------- full sign-in flow through the real app ----------
 
 @pytest.fixture
-def app(monkeypatch):
+def app(monkeypatch, tmp_path):
+    monkeypatch.setenv("AUTH_SESSIONS_FILE", str(tmp_path / "sessions.json"))   # never touch the real file
     from streamlit.testing.v1 import AppTest
     fake = FakeMiniMoth()
     for name in ("send_otp", "verify_otp", "validate", "refresh", "logout"):

@@ -18,6 +18,7 @@ import json
 import os
 import re
 import secrets
+import sys
 import threading
 import time
 import urllib.error
@@ -83,11 +84,23 @@ def mask_phone(phone):
 
 
 def parse_expiry(value):
-    """ISO-8601 timestamp -> epoch seconds (falls back to 5 minutes from now)."""
+    """Token expiry -> epoch seconds. Accepts ISO-8601 (with or without a timezone, treated as UTC),
+    or a Unix timestamp in seconds or milliseconds. Falls back to 5 minutes from now."""
     try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc).timestamp()
+        if isinstance(value, (int, float)) or str(value).strip().isdigit():
+            ts = float(value)
+            return ts / 1000 if ts > 1e12 else ts
+        dt = datetime.fromisoformat(str(value).strip().replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)   # never let a missing timezone be read as local time
+        return dt.timestamp()
     except (TypeError, ValueError):
         return time.time() + 300
+
+
+def _log(message):
+    # Server-side diagnostics only: error codes, never tokens or full phone numbers
+    print(f"[auth] {time.strftime('%H:%M:%S')} {message}", file=sys.stderr, flush=True)
 
 
 class MiniMothClient:
@@ -144,12 +157,34 @@ class SessionStore:
     """Server-side session table: random handle -> MiniMoth tokens.
 
     Tokens never leave the server; the browser only holds the opaque handle.
-    In-memory for this demo (one process); use Redis or a database in production.
+    If `path` is given, sessions are also saved to that file (git-ignored) so a server
+    restart or redeploy doesn't sign everyone out. Use Redis or a database in production.
     """
 
-    def __init__(self):
+    def __init__(self, path=None):
         self._lock = threading.Lock()
+        self._path = path
         self._sessions = {}
+        if path and os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    loaded = json.load(f)
+                now = time.time()
+                self._sessions = {h: s for h, s in loaded.items() if now - s.get("created_at", 0) <= HANDLE_MAX_AGE_S}
+            except (OSError, ValueError):
+                self._sessions = {}
+
+    def _save(self):
+        if not self._path:
+            return
+        try:
+            os.makedirs(os.path.dirname(self._path) or ".", exist_ok=True)
+            tmp = self._path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(self._sessions, f)
+            os.replace(tmp, self._path)
+        except OSError as e:
+            _log(f"could not save sessions ({e.__class__.__name__})")
 
     def create(self, phone, tokens):
         handle = secrets.token_urlsafe(32)
@@ -162,6 +197,7 @@ class SessionStore:
                 "created_at": time.time(),
                 "last_validated": time.time(),
             }
+            self._save()
         return handle
 
     def get(self, handle):
@@ -169,6 +205,7 @@ class SessionStore:
             s = self._sessions.get(handle)
             if s and time.time() - s["created_at"] > HANDLE_MAX_AGE_S:
                 self._sessions.pop(handle, None)
+                self._save()
                 return None
             return dict(s) if s else None
 
@@ -176,10 +213,14 @@ class SessionStore:
         with self._lock:
             if handle in self._sessions:
                 self._sessions[handle].update(fields)
+                self._save()
 
     def delete(self, handle):
         with self._lock:
-            return self._sessions.pop(handle, None)
+            s = self._sessions.pop(handle, None)
+            if s is not None:
+                self._save()
+            return s
 
 
 def ensure_fresh(client, store, handle):
@@ -192,19 +233,25 @@ def ensure_fresh(client, store, handle):
     if not s:
         return None
     now = time.time()
+    step = "validate"
     try:
         if now >= s["expires_at"] - REFRESH_MARGIN_S:
+            step = "refresh"
             t = client.refresh(s["refresh_token"])
-            store.update(handle, access_token=t.get("access_token"), refresh_token=t.get("refresh_token"),
+            store.update(handle, access_token=t.get("access_token"),
+                         refresh_token=t.get("refresh_token") or s["refresh_token"],
                          expires_at=parse_expiry(t.get("expires_at")), last_validated=now)
         elif now - s["last_validated"] >= REVALIDATE_EVERY_S:
             if not client.validate(s["access_token"]).get("valid"):
+                _log(f"session for {mask_phone(s['phone'])} ended: MiniMoth reported it invalid")
                 store.delete(handle)
                 return None
             store.update(handle, last_validated=now)
     except MiniMothError as e:
-        if e.code == "NETWORK_ERROR":
-            return s  # keep the user signed in through a brief network blip; next run re-checks
+        if e.code == "NETWORK_ERROR" or (e.status or 0) >= 500:
+            _log(f"{step} skipped ({e.code}); keeping session")
+            return s  # keep the user signed in through a brief outage; the next run re-checks
+        _log(f"session for {mask_phone(s['phone'])} ended on {step}: {e.code}")
         store.delete(handle)
         return None
     return store.get(handle)

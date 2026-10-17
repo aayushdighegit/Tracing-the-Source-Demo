@@ -5,3 +5,5 @@ lib/
 
 # Real API keys live here; never commit
 .streamlit/secrets.toml
+.streamlit/.auth_sessions.json
+.streamlit/.auth_sessions.json.tmp
