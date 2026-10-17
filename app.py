@@ -465,6 +465,26 @@ html.tc-cursor-on input[type="text"], html.tc-cursor-on textarea { cursor: text 
 .hs-sub { font-size: .8rem; color: var(--muted); margin-top: 2px; }
 .hs-star { color: var(--accent); font-size: .85rem; }
 
+/* Dashboard sub-tabs: sticky, cut-corner chips in the theme */
+.stMain .stTabs [role="tablist"] {
+    position: sticky; top: 0; z-index: 30; gap: 8px; padding: 10px 0 12px 0; margin-bottom: 6px;
+    background: linear-gradient(180deg, rgba(16,17,20,0.96), rgba(16,17,20,0.88)); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+}
+html[data-mode="light"] .stMain .stTabs [role="tablist"] { background: linear-gradient(180deg, rgba(245,241,232,0.97), rgba(245,241,232,0.9)); }
+.stMain .stTabs [data-baseweb="tab-highlight"], .stMain .stTabs [data-baseweb="tab-border"], .stMain .stTabs .react-aria-SelectionIndicator { display: none; }
+.stMain .stTabs [role="tab"] {
+    height: auto; padding: 9px 26px 9px 18px; background: var(--panel); border: 1px solid var(--line); border-bottom: 2px solid var(--line);
+    clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%); transition: background .15s, transform .15s;
+}
+.stMain .stTabs [role="tab"] p { font-size: .85rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.stMain .stTabs [role="tab"]:hover { background: var(--panel-2); transform: translateY(-2px); }
+.stMain .stTabs [role="tab"]:hover p { color: var(--text); }
+.stMain .stTabs [role="tab"][aria-selected="true"] { background: var(--accent); border-color: var(--accent); border-bottom-color: #1a1b20; box-shadow: 0 0 18px rgba(217,164,65,0.35); }
+.stMain .stTabs [role="tab"][aria-selected="true"] p { color: #1a1b20; }
+.stMain .stTabs [role="tabpanel"] { padding-top: 6px; }
+.stMain .stTabs [role="tab"] { cursor: pointer; display: inline-flex; align-items: center; }
+
 /* ===== Light mode (set by the theme toggle; html[data-mode] comes from the page script) ===== */
 html[data-mode="light"] {
     --bg: #f5f1e8; --panel: rgba(255,255,255,0.74); --panel-2: rgba(255,255,255,0.9); --line: #d9d0bf;
@@ -526,6 +546,22 @@ CURSOR_JS = r"""
       }
       document.documentElement.setAttribute('data-mode', mode.toLowerCase());
       document.addEventListener('click', function (e) {
+        const go = e.target.closest && e.target.closest('[data-goto-tab]');
+        if (go) {
+          e.preventDefault();
+          const label = go.getAttribute('data-goto-tab'), anchor = (go.getAttribute('href') || '').replace('#', '');
+          const tab = Array.from(document.querySelectorAll('[role="tab"]')).find(function (b) { return b.textContent.toLowerCase().indexOf(label.toLowerCase()) > -1; });
+          if (tab) {
+            const o = { bubbles: true, cancelable: true, composed: true, pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0 };
+            tab.dispatchEvent(new PointerEvent('pointerdown', Object.assign({ buttons: 1 }, o)));
+            tab.dispatchEvent(new MouseEvent('mousedown', Object.assign({ buttons: 1 }, o)));
+            tab.dispatchEvent(new PointerEvent('pointerup', Object.assign({ buttons: 0 }, o)));
+            tab.dispatchEvent(new MouseEvent('mouseup', Object.assign({ buttons: 0 }, o)));
+            tab.dispatchEvent(new MouseEvent('click', Object.assign({ buttons: 0 }, o)));
+          }
+          setTimeout(function () { const t = anchor && document.getElementById(anchor); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 350);
+          return;
+        }
         if (!e.target.closest || !e.target.closest('.mode-toggle')) return;
         localStorage.setItem(KEY, JSON.stringify(mode === 'Dark' ? 'Light' : 'Dark'));
         location.reload();
@@ -1111,349 +1147,362 @@ if view_option == "Main Dashboard":
         counts = sick_df.merge(df_vendors, left_on='reported_vendor', right_on='vendor_id')['batch_received'].value_counts()
         return (counts.index[0], int(counts.iloc[0])) if len(counts) else (None, 0)
 
-    # AUTO SITREP TICKER (written from the live numbers; rule-based, not an LLM)
-    if top_1_suspect is not None:
-        n_target_vendors = df_vendors.loc[df_vendors['batch_received'] == prime_suspect, 'vendor_id'].nunique()
-        sitrep = [
-            f"Day {current_day}: <b>{len(sick_patients)}</b> confirmed cases in <b>{affected_wards}/{total_wards}</b> wards",
-            f"Lead suspect <b>{html.escape(short_name(prime_suspect))}</b> ({html.escape(str(FOOD_BY_BATCH.get(prime_suspect, '')))}) at <b>{top_1_suspect['Risk Score (%)']}%</b> risk, {top_1_suspect['Relative Risk']} baseline",
-            f"Pull this batch at <b>{n_target_vendors}</b> vendors supplied by {html.escape(str(top_1_suspect['Wholesaler']))}",
-            f"<b>{total_vendors - n_target_vendors}</b> vendors spared a city-wide recall",
-        ]
-        ticker = '<span class="sep">◆</span>'.join(f"<span>{item}</span>" for item in sitrep)
+    # Dashboard sub-tabs keep the long page easy to navigate (the bar sticks to the top while scrolling)
+    tab_ov, tab_rk, tab_pf, tab_ac = st.tabs([
+        ":material/space_dashboard: Overview", ":material/leaderboard: Rankings",
+        ":material/fact_check: Proof", ":material/assignment_turned_in: Action"])
+
+    with tab_ov:
+        st.caption("Overview: the current answer at a glance")
+        # AUTO SITREP TICKER (written from the live numbers; rule-based, not an LLM)
+        if top_1_suspect is not None:
+            n_target_vendors = df_vendors.loc[df_vendors['batch_received'] == prime_suspect, 'vendor_id'].nunique()
+            sitrep = [
+                f"Day {current_day}: <b>{len(sick_patients)}</b> confirmed cases in <b>{affected_wards}/{total_wards}</b> wards",
+                f"Lead suspect <b>{html.escape(short_name(prime_suspect))}</b> ({html.escape(str(FOOD_BY_BATCH.get(prime_suspect, '')))}) at <b>{top_1_suspect['Risk Score (%)']}%</b> risk, {top_1_suspect['Relative Risk']} baseline",
+                f"Pull this batch at <b>{n_target_vendors}</b> vendors supplied by {html.escape(str(top_1_suspect['Wholesaler']))}",
+                f"<b>{total_vendors - n_target_vendors}</b> vendors spared a city-wide recall",
+            ]
+            ticker = '<span class="sep">◆</span>'.join(f"<span>{item}</span>" for item in sitrep)
+            st.markdown(f"""
+    <div class="sitrep" title="Auto-generated situation report: updates with the day slider and new case reports">
+      <div class="sitrep-tag">SitRep</div>
+      <div class="sitrep-track"><div class="sitrep-run">{ticker}<span class="sep">◆</span>{ticker}<span class="sep">◆</span></div></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+        # RUBRIC: TOP-1 & TOP-3 LIST + EARLY DETECTION BANNER
+        if top_1_suspect is not None:
+            rc_class = "rc1" if top_1_suspect['Reason Code'].startswith("RC-01") else "rc2" if top_1_suspect['Reason Code'].startswith("RC-02") else "rc3"
+            st.markdown(f"""
+    <div class="hero">
+      <div class="hero-top"><span class="flag">Top-1 suspected source identified</span><span class="score">{top_1_suspect['Risk Score (%)']}% posterior risk</span></div>
+      <div class="label">Day {current_day} early detection · before lab confirmation</div>
+      <div class="batch">{html.escape(str(top_1_suspect['Batch']))}</div>
+      <div class="sub">Wholesaler <b>{html.escape(str(top_1_suspect['Wholesaler']))}</b> · Food <b>{html.escape(str(FOOD_BY_BATCH.get(top_1_suspect['Batch'], '—')))}</b></div>
+      <div class="stats">
+        <div><div class="k">Relative risk vs. baseline</div><div class="v accent">{top_1_suspect['Relative Risk']}</div></div>
+        <div><div class="k">Sick / healthy exposed</div><div class="v">{top_1_suspect['Sick']} / {top_1_suspect['Healthy']}</div></div>
+        <div><div class="k">Wards hit</div><div class="v">{top_1_suspect['Wards Hit']} of {total_wards}</div></div>
+      </div>
+      <div class="code {rc_class}">{html.escape(str(top_1_suspect['Reason Code']))}</div>
+      <div class="actions"><span class="cp-wrap"><a class="cp-btn" href="#recall" data-goto-tab="Action">Targeted recall list</a></span><span class="cp-wrap"><a class="cp-btn ghost" href="#evidence" data-goto-tab="Action">Evidence trail</a></span></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+        def pct(part, whole):
+            return min(part / whole, 1) * 100 if whole else 0
+
+        runner_cards = ""
+        for _, r in top_3_suspects.iloc[1:3].iterrows():
+            r_class = "rc1" if r['Reason Code'].startswith("RC-01") else "rc2" if r['Reason Code'].startswith("RC-02") else "rc3"
+            runner_cards += f"""
+      <div class="runner">
+        <div class="runner-top"><span class="rk">{html.escape(str(r['Rank']))}</span><span class="rscore">{r['Risk Score (%)']}% risk</span></div>
+        <div class="rbatch">{html.escape(str(r['Batch']))}</div>
+        <div class="rsub">{html.escape(str(FOOD_BY_BATCH.get(r['Batch'], '—')))} · {html.escape(str(r['Wholesaler']))}</div>
+        <div class="track"><div class="fill" style="width:{min(max(r['Risk Score (%)'], 0), 100):.0f}%"></div></div>
+        <div class="rstats"><span>{r['Relative Risk']} vs. baseline</span><span>{r['Sick']} sick / {r['Healthy']} healthy</span><span>{r['Wards Hit']} wards</span></div>
+        <div class="code {r_class}">{html.escape(str(r['Reason Code']))}</div>
+      </div>"""
+        if runner_cards:
+            st.markdown(f'<div class="runner-label">Also ranked in the top 3</div><div class="runners">{runner_cards}</div>', unsafe_allow_html=True)
+
         st.markdown(f"""
-<div class="sitrep" title="Auto-generated situation report: updates with the day slider and new case reports">
-  <div class="sitrep-tag">SitRep</div>
-  <div class="sitrep-track"><div class="sitrep-run">{ticker}<span class="sep">◆</span>{ticker}<span class="sep">◆</span></div></div>
-</div>
-""", unsafe_allow_html=True)
+    <div class="kpi-grid">
+      <div class="kpi wide"><div class="k">Confirmed sick cases</div><div class="v accent">{len(sick_patients)}</div>
+        <div class="s">of {len(available_reports)} cleaned reports</div>
+        <div class="track"><div class="fill" style="width:{pct(len(sick_patients), len(available_reports)):.0f}%"></div></div></div>
+      <div class="kpi wide"><div class="k">Cleaned reports (≤ Day {current_day})</div><div class="v">{len(available_reports)}</div>
+        <div class="s down">-{duplicates_removed + missing_removed} noisy/missing removed</div>
+        <div class="track"><div class="fill second" style="width:{pct(len(available_reports), len(cleaned_patients)):.0f}%"></div></div></div>
+      <div class="kpi"><div class="k">Late reports integrated</div><div class="v">{late_cases_count}</div>
+        <div class="s">reported after the day of eating</div>
+        <div class="track"><div class="fill second" style="width:{pct(late_cases_count, len(available_reports)):.0f}%"></div></div></div>
+      <div class="kpi"><div class="k">Implicated vendors</div><div class="v">{implicated_vendors} <small>/ {total_vendors}</small></div>
+        <div class="s">linked to a sick case</div>
+        <div class="track"><div class="fill" style="width:{pct(implicated_vendors, total_vendors):.0f}%"></div></div></div>
+      <div class="kpi"><div class="k">City wards affected</div><div class="v">{affected_wards} <small>/ {total_wards}</small></div>
+        <div class="s">with at least one sick case</div>
+        <div class="track"><div class="fill" style="width:{pct(affected_wards, total_wards):.0f}%"></div></div></div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # RUBRIC: TOP-1 & TOP-3 LIST + EARLY DETECTION BANNER
-    if top_1_suspect is not None:
-        rc_class = "rc1" if top_1_suspect['Reason Code'].startswith("RC-01") else "rc2" if top_1_suspect['Reason Code'].startswith("RC-02") else "rc3"
-        st.markdown(f"""
-<div class="hero">
-  <div class="hero-top"><span class="flag">Top-1 suspected source identified</span><span class="score">{top_1_suspect['Risk Score (%)']}% posterior risk</span></div>
-  <div class="label">Day {current_day} early detection · before lab confirmation</div>
-  <div class="batch">{html.escape(str(top_1_suspect['Batch']))}</div>
-  <div class="sub">Wholesaler <b>{html.escape(str(top_1_suspect['Wholesaler']))}</b> · Food <b>{html.escape(str(FOOD_BY_BATCH.get(top_1_suspect['Batch'], '—')))}</b></div>
-  <div class="stats">
-    <div><div class="k">Relative risk vs. baseline</div><div class="v accent">{top_1_suspect['Relative Risk']}</div></div>
-    <div><div class="k">Sick / healthy exposed</div><div class="v">{top_1_suspect['Sick']} / {top_1_suspect['Healthy']}</div></div>
-    <div><div class="k">Wards hit</div><div class="v">{top_1_suspect['Wards Hit']} of {total_wards}</div></div>
-  </div>
-  <div class="code {rc_class}">{html.escape(str(top_1_suspect['Reason Code']))}</div>
-  <div class="actions"><span class="cp-wrap"><a class="cp-btn" href="#recall">Targeted recall list</a></span><span class="cp-wrap"><a class="cp-btn ghost" href="#evidence">Evidence trail</a></span></div>
-</div>
-""", unsafe_allow_html=True)
-
-    def pct(part, whole):
-        return min(part / whole, 1) * 100 if whole else 0
-
-    runner_cards = ""
-    for _, r in top_3_suspects.iloc[1:3].iterrows():
-        r_class = "rc1" if r['Reason Code'].startswith("RC-01") else "rc2" if r['Reason Code'].startswith("RC-02") else "rc3"
-        runner_cards += f"""
-  <div class="runner">
-    <div class="runner-top"><span class="rk">{html.escape(str(r['Rank']))}</span><span class="rscore">{r['Risk Score (%)']}% risk</span></div>
-    <div class="rbatch">{html.escape(str(r['Batch']))}</div>
-    <div class="rsub">{html.escape(str(FOOD_BY_BATCH.get(r['Batch'], '—')))} · {html.escape(str(r['Wholesaler']))}</div>
-    <div class="track"><div class="fill" style="width:{min(max(r['Risk Score (%)'], 0), 100):.0f}%"></div></div>
-    <div class="rstats"><span>{r['Relative Risk']} vs. baseline</span><span>{r['Sick']} sick / {r['Healthy']} healthy</span><span>{r['Wards Hit']} wards</span></div>
-    <div class="code {r_class}">{html.escape(str(r['Reason Code']))}</div>
-  </div>"""
-    if runner_cards:
-        st.markdown(f'<div class="runner-label">Also ranked in the top 3</div><div class="runners">{runner_cards}</div>', unsafe_allow_html=True)
-
-    st.markdown(f"""
-<div class="kpi-grid">
-  <div class="kpi wide"><div class="k">Confirmed sick cases</div><div class="v accent">{len(sick_patients)}</div>
-    <div class="s">of {len(available_reports)} cleaned reports</div>
-    <div class="track"><div class="fill" style="width:{pct(len(sick_patients), len(available_reports)):.0f}%"></div></div></div>
-  <div class="kpi wide"><div class="k">Cleaned reports (≤ Day {current_day})</div><div class="v">{len(available_reports)}</div>
-    <div class="s down">-{duplicates_removed + missing_removed} noisy/missing removed</div>
-    <div class="track"><div class="fill second" style="width:{pct(len(available_reports), len(cleaned_patients)):.0f}%"></div></div></div>
-  <div class="kpi"><div class="k">Late reports integrated</div><div class="v">{late_cases_count}</div>
-    <div class="s">reported after the day of eating</div>
-    <div class="track"><div class="fill second" style="width:{pct(late_cases_count, len(available_reports)):.0f}%"></div></div></div>
-  <div class="kpi"><div class="k">Implicated vendors</div><div class="v">{implicated_vendors} <small>/ {total_vendors}</small></div>
-    <div class="s">linked to a sick case</div>
-    <div class="track"><div class="fill" style="width:{pct(implicated_vendors, total_vendors):.0f}%"></div></div></div>
-  <div class="kpi"><div class="k">City wards affected</div><div class="v">{affected_wards} <small>/ {total_wards}</small></div>
-    <div class="s">with at least one sick case</div>
-    <div class="track"><div class="fill" style="width:{pct(affected_wards, total_wards):.0f}%"></div></div></div>
-</div>
-""", unsafe_allow_html=True)
-
-    # EPI-CURVE: sick cases by time of eating, split by link to the top-1 suspect batch
-    with st.container(border=True):
-        st.subheader("Epidemic curve (sick cases by time of eating)")
-        st.caption(f"3-hour slots, reports up to Day {current_day}. Amber = ate at a vendor stocking the top-1 suspect batch; teal = all other sick cases.")
-        if sick_patients.empty:
-            st.info("No confirmed sick cases yet.")
-        else:
-            suspect_vendors = set(df_vendors.loc[df_vendors['batch_received'] == prime_suspect, 'vendor_id'])
-            epi = sick_patients[['reported_vendor', 'consumption_time']].copy()
-            epi['slot'] = pd.to_datetime(epi['consumption_time'], errors='coerce').dt.floor('3h')
-            epi = epi.dropna(subset=['slot'])
-            epi['Link'] = np.where(epi['reported_vendor'].isin(suspect_vendors), f"Top-1 suspect ({short_name(prime_suspect)})", "Other sick cases")
-            epi_counts = epi.groupby(['slot', 'Link']).size().reset_index(name='Cases')
-            light = THEME_TYPE == "light"
-            accent, teal = ("#b07a16", "#2c8c86") if light else ("#d9a441", "#7cc4c0")
-            ink, grid = ("#6d665c", "rgba(60,45,20,0.10)") if light else ("#b3ada5", "rgba(255,255,255,0.07)")
-            link_order = [f"Top-1 suspect ({short_name(prime_suspect)})", "Other sick cases"]
-            chart = (
-                alt.Chart(epi_counts)
-                .mark_bar(width={"band": 0.86}, cornerRadiusTopLeft=2, cornerRadiusTopRight=2)
-                .encode(
-                    x=alt.X('slot:T', title=None, timeUnit=alt.TimeUnitParams(unit='yearmonthdatehours', step=3),
-                            axis=alt.Axis(format='%a %d · %H:%M', labelAngle=0, labelColor=ink, tickColor=grid, domainColor=grid, labelFontSize=11)),
-                    y=alt.Y('Cases:Q', stack='zero', title='Sick cases',
-                            axis=alt.Axis(labelColor=ink, titleColor=ink, gridColor=grid, domainColor=grid, tickColor=grid, tickMinStep=1)),
-                    color=alt.Color('Link:N', scale=alt.Scale(domain=link_order, range=[accent, teal]),
-                                    legend=alt.Legend(orient='top', title=None, labelColor=ink, symbolType='square', labelLimit=320)),
-                    order=alt.Order('Link:N', sort='descending'),
-                    tooltip=[alt.Tooltip('slot:T', title='Ate between', format='%a %d %b, %H:%M'),
-                             alt.Tooltip('Link:N', title='Group'), alt.Tooltip('Cases:Q', title='Sick cases')],
-                )
-                .properties(height=260)
-                .configure(background='transparent')
-                .configure_view(strokeWidth=0)
-            )
-            st.altair_chart(chart, use_container_width=True)
-
-    with st.container(border=True):
-        st.subheader("Top-3 ranked suspected sources (Bayesian engine)")
-        st.caption("Separates true common exposures from popular foods, 5% background illness, and 10% wrong recall.")
-        # Rendered as a wrapping table so the long reason codes never need a horizontal scrollbar
-        top3_rows = "".join(
-            f"<tr><td><span class='rank-chip {'first' if r['Rank'] == '#1' else ''}'>{html.escape(str(r['Rank']))}</span></td>"
-            f"<td class='mono'>{html.escape(str(r['Batch']))}</td>"
-            f"<td class='food'>{html.escape(str(FOOD_BY_BATCH.get(r['Batch'], '—')))}</td>"
-            f"<td>{html.escape(str(r['Wholesaler']))}</td>"
-            f"<td><div class='risk'><span class='mono'>{r['Risk Score (%)']:.1f}%</span>"
-            f"<div class='risk-track'><div class='risk-fill' style='width:{min(max(r['Risk Score (%)'], 0), 100):.1f}%'></div></div></div></td>"
-            f"<td class='num'>{r['Sick']}</td><td class='num'>{r['Healthy']}</td><td class='num'>{r['Wards Hit']}</td>"
-            f"<td><span class='reason-tag {'rc1' if r['Reason Code'].startswith('RC-01') else 'rc2' if r['Reason Code'].startswith('RC-02') else 'rc3'}'>{html.escape(str(r['Reason Code']))}</span></td></tr>"
-            for _, r in top_3_suspects.iterrows()
-        )
-        st.markdown(f"""
-<table class="wrap-table top3">
-  <thead><tr><th>Rank</th><th>Batch</th><th>Food</th><th>Wholesaler</th><th title="Laplace Smoothed Posterior Probability">Bayesian Risk</th>
-  <th class="num">Sick</th><th class="num">Healthy</th><th class="num">Wards Hit</th><th>Reason Code</th></tr></thead>
-  <tbody>{top3_rows}</tbody>
-</table>
-""", unsafe_allow_html=True)
-
-    # HOTSPOTS: which wards and vendors carry the most confirmed cases (up to the selected day)
-    with st.container(border=True):
-        st.subheader("Hotspots: most affected wards & vendors", anchor="hotspots")
-        st.caption("Ranked by confirmed sick cases, then by attack rate (share of reports from there that are sick). "
-                   "★ = linked to the top-1 suspect batch.")
-        vendor_ward = df_vendors.drop_duplicates('vendor_id')[['vendor_id', 'ward']]
-        suspect_vendor_ids = set(df_vendors.loc[df_vendors['batch_received'] == prime_suspect, 'vendor_id'])
-        exposure = available_reports.merge(vendor_ward, left_on='reported_vendor', right_on='vendor_id', how='inner')
-        exposure['sick'] = exposure['status'].eq('Sick')
-        exposure['suspect_sick'] = exposure['sick'] & exposure['reported_vendor'].isin(suspect_vendor_ids)
-
-        def rank_hotspots(group_col):
-            g = exposure.groupby(group_col).agg(sick=('sick', 'sum'), reports=('sick', 'size'), suspect=('suspect_sick', 'sum')).reset_index()
-            g['attack'] = (g['sick'] + 1) / (g['reports'] + 2) * 100   # same Laplace smoothing as the batch engine
-            g = g.sort_values(['sick', 'attack'], ascending=False).reset_index(drop=True)
-            g.insert(0, 'rank', [f"#{i + 1}" for i in range(len(g))])
-            return g
-
-        ward_rank, vendor_rank = rank_hotspots('ward'), rank_hotspots('reported_vendor')
-        vendor_rank = vendor_rank.merge(vendor_ward, left_on='reported_vendor', right_on='vendor_id', how='left')
-
-        def hotspot_table(df, name_col, sub_col=None, n=8):
-            rows = ""
-            for _, r in df.head(n).iterrows():
-                name = html.escape(str(r[name_col]))
-                sub = f"<div class='hs-sub'>{html.escape(str(r[sub_col]))}</div>" if sub_col else ""
-                star = " <span class='hs-star' title='Linked to the top-1 suspect batch'>★</span>" if r['suspect'] > 0 else ""
-                rows += (f"<tr><td><span class='rank-chip {'first' if r['rank'] == '#1' else ''}'>{r['rank']}</span></td>"
-                         f"<td>{name}{star}{sub}</td><td class='num'>{int(r['sick'])}</td><td class='num'>{int(r['reports'])}</td>"
-                         f"<td><div class='risk'><span class='mono'>{r['attack']:.0f}%</span><div class='risk-track'>"
-                         f"<div class='risk-fill' style='width:{min(r['attack'], 100):.0f}%'></div></div></div></td></tr>")
-            return ('<table class="wrap-table hotspot"><thead><tr><th>Rank</th><th>' + ('Ward' if not sub_col else 'Vendor')
-                    + '</th><th class="num">Sick</th><th class="num">Reports</th><th>Attack rate</th></tr></thead><tbody>'
-                    + rows + '</tbody></table>')
-
-        ward_col, vendor_col = st.columns(2, gap="medium")
-        with ward_col:
-            st.markdown(f"<div class='hs-title'>▲ Ward ranking <b>{len(ward_rank)} wards</b></div>", unsafe_allow_html=True)
-            st.markdown(hotspot_table(ward_rank, 'ward'), unsafe_allow_html=True)
-        with vendor_col:
-            st.markdown(f"<div class='hs-title'>▪ Vendor ranking <b>{len(vendor_rank)} vendors</b></div>", unsafe_allow_html=True)
-            st.markdown(hotspot_table(vendor_rank, 'reported_vendor', sub_col='ward'), unsafe_allow_html=True)
-        with st.expander("Show the full ward and vendor rankings"):
-            full_w, full_v = st.columns(2, gap="medium")
-            full_w.dataframe(
-                ward_rank[['rank', 'ward', 'sick', 'reports', 'attack']],
-                column_config={"rank": st.column_config.TextColumn("Rank", width=60), "ward": st.column_config.TextColumn("Ward"),
-                               "sick": st.column_config.NumberColumn("Sick", width=60), "reports": st.column_config.NumberColumn("Reports", width=75),
-                               "attack": st.column_config.ProgressColumn("Attack rate", format="%.0f%%", min_value=0, max_value=100, width=120)},
-                width="stretch", height=fit_height(len(ward_rank)), row_height=TABLE_ROW_H, hide_index=True)
-            full_v.dataframe(
-                vendor_rank[['rank', 'reported_vendor', 'ward', 'sick', 'attack']],
-                column_config={"rank": st.column_config.TextColumn("Rank", width=60), "reported_vendor": st.column_config.TextColumn("Vendor", width=95),
-                               "ward": st.column_config.TextColumn("Ward"), "sick": st.column_config.NumberColumn("Sick", width=60),
-                               "attack": st.column_config.ProgressColumn("Attack rate", format="%.0f%%", min_value=0, max_value=100, width=120)},
-                width="stretch", height=fit_height(len(vendor_rank)), row_height=TABLE_ROW_H, hide_index=True)
-
-    with st.container(border=True):
-        st.subheader("Simple baseline (raw case count & co-occurrence)")
-        st.caption("Fails by flagging popular foods eaten by everyone.")
-        naive_df = sick_patients.merge(df_vendors, left_on='reported_vendor', right_on='vendor_id')
-        naive_counts = naive_df['batch_received'].value_counts().reset_index()
-        naive_counts.columns = ['Batch', 'Raw Sick Co-occurrence']
-        base_tbl, base_note = st.columns([1, 1], gap="large")
-        with base_tbl:
-            st.dataframe(
-                naive_counts,
-                column_config={
-                    "Batch": st.column_config.TextColumn("Batch"),
-                    "Raw Sick Co-occurrence": st.column_config.ProgressColumn(
-                        "Raw sick co-occurrence", format="%d", min_value=0,
-                        max_value=int(naive_counts['Raw Sick Co-occurrence'].max()) if len(naive_counts) else 1, width=190),
-                },
-                width="stretch", height=fit_height(len(naive_counts)), row_height=TABLE_ROW_H, hide_index=True
-            )
-        with base_note:
-            base_batch, base_sick = raw_count_leader(sick_patients)
-            if base_batch is None:
-                st.info("No confirmed sick cases yet, so the baseline has nothing to rank.")
-            elif base_batch != prime_suspect:
-                stock_share = df_vendors.loc[df_vendors['batch_received'] == base_batch, 'vendor_id'].nunique() / total_vendors
-                base_row = df_scores[df_scores['Batch'] == base_batch]
-                base_healthy = int(base_row['Healthy'].iloc[0]) if not base_row.empty else 0
-                st.error(f"**Baseline Failure:** Flags `{base_batch}` as #1 because {stock_share:.0%} of vendors stock it "
-                         f"({base_sick} sick eaters, even though {base_healthy} healthy people also had it). "
-                         f"The Bayesian engine ranks `{prime_suspect}` first instead.")
+        # EPI-CURVE: sick cases by time of eating, split by link to the top-1 suspect batch
+        with st.container(border=True):
+            st.subheader("Epidemic curve (sick cases by time of eating)")
+            st.caption(f"3-hour slots, reports up to Day {current_day}. Amber = ate at a vendor stocking the top-1 suspect batch; teal = all other sick cases.")
+            if sick_patients.empty:
+                st.info("No confirmed sick cases yet.")
             else:
-                st.info(f"The baseline agrees with the Bayesian engine on `{base_batch}` at this point in the outbreak.")
+                suspect_vendors = set(df_vendors.loc[df_vendors['batch_received'] == prime_suspect, 'vendor_id'])
+                epi = sick_patients[['reported_vendor', 'consumption_time']].copy()
+                epi['slot'] = pd.to_datetime(epi['consumption_time'], errors='coerce').dt.floor('3h')
+                epi = epi.dropna(subset=['slot'])
+                epi['Link'] = np.where(epi['reported_vendor'].isin(suspect_vendors), f"Top-1 suspect ({short_name(prime_suspect)})", "Other sick cases")
+                epi_counts = epi.groupby(['slot', 'Link']).size().reset_index(name='Cases')
+                light = THEME_TYPE == "light"
+                accent, teal = ("#b07a16", "#2c8c86") if light else ("#d9a441", "#7cc4c0")
+                ink, grid = ("#6d665c", "rgba(60,45,20,0.10)") if light else ("#b3ada5", "rgba(255,255,255,0.07)")
+                link_order = [f"Top-1 suspect ({short_name(prime_suspect)})", "Other sick cases"]
+                chart = (
+                    alt.Chart(epi_counts)
+                    .mark_bar(width={"band": 0.86}, cornerRadiusTopLeft=2, cornerRadiusTopRight=2)
+                    .encode(
+                        x=alt.X('slot:T', title=None, timeUnit=alt.TimeUnitParams(unit='yearmonthdatehours', step=3),
+                                axis=alt.Axis(format='%a %d · %H:%M', labelAngle=0, labelColor=ink, tickColor=grid, domainColor=grid, labelFontSize=11)),
+                        y=alt.Y('Cases:Q', stack='zero', title='Sick cases',
+                                axis=alt.Axis(labelColor=ink, titleColor=ink, gridColor=grid, domainColor=grid, tickColor=grid, tickMinStep=1)),
+                        color=alt.Color('Link:N', scale=alt.Scale(domain=link_order, range=[accent, teal]),
+                                        legend=alt.Legend(orient='top', title=None, labelColor=ink, symbolType='square', labelLimit=320)),
+                        order=alt.Order('Link:N', sort='descending'),
+                        tooltip=[alt.Tooltip('slot:T', title='Ate between', format='%a %d %b, %H:%M'),
+                                 alt.Tooltip('Link:N', title='Group'), alt.Tooltip('Cases:Q', title='Sick cases')],
+                    )
+                    .properties(height=260)
+                    .configure(background='transparent')
+                    .configure_view(strokeWidth=0)
+                )
+                st.altair_chart(chart, use_container_width=True)
 
-    # RUBRIC: EARLY DETECTION ACROSS DAYS (Proving Detection Before All Cases Arrive)
-    with st.expander("Early detection proof (Day 1 vs Day 2 vs Day 3 trajectory & mathematical model)"):
-        st.markdown("#### 1. Early source detection (before all cases or lab results arrive)")
-        day_progression = []
-        for d in [1, 2, 3]:
-            _, d_sick, _, d_scores, _ = run_bayesian_traceback(cleaned_patients, df_vendors, df_batches, d)
-            top_d = d_scores.iloc[0]
-            d_base, _ = raw_count_leader(d_sick)
-            day_progression.append({
-                'Timeline': f"Day {d} ({'Early Onset - 25% Data' if d==1 else 'Mid Outbreak' if d==2 else 'Full Data'})",
-                'Top-1 Ranked Batch': top_d['Batch'],
-                'Bayesian Risk (%)': f"{top_d['Risk Score (%)']}%",
-                'Top-3 Ranking': " › ".join(f"{short_name(b)} {r}%" for b, r in zip(d_scores['Batch'].head(3), d_scores['Risk Score (%)'].head(3))),
-                'Confirmed Sick Cases Used': top_d['Sick'],
-                'Healthy Controls Used': top_d['Healthy'],
-                'Beats Raw Count Baseline?': (f"✅ YES (Isolates {short_name(top_d['Batch'])} over {short_name(d_base)})"
-                                              if d_base is not None and d_base != top_d['Batch'] else "Same pick as baseline")
-            })
-        # Rendered as a wrapping table so it fits laptop screens without a horizontal scrollbar
-        day_df = pd.DataFrame(day_progression)
-        day_head = "".join(f"<th>{html.escape(c)}</th>" for c in day_df.columns)
-        day_body = "".join(
-            "<tr>" + "".join(f"<td>{html.escape(str(v)).replace('✅ ', '<span class=ok-dot></span>')}</td>" for v in row) + "</tr>"
-            for row in day_df.itertuples(index=False)
-        )
-        st.markdown(f'<table class="wrap-table"><thead><tr>{day_head}</tr></thead><tbody>{day_body}</tbody></table>', unsafe_allow_html=True)
+    with tab_rk:
+        st.caption("Rankings: every suspect batch, ward and vendor in order")
+        with st.container(border=True):
+            st.subheader("Top-3 ranked suspected sources (Bayesian engine)")
+            st.caption("Separates true common exposures from popular foods, 5% background illness, and 10% wrong recall.")
+            # Rendered as a wrapping table so the long reason codes never need a horizontal scrollbar
+            top3_rows = "".join(
+                f"<tr><td><span class='rank-chip {'first' if r['Rank'] == '#1' else ''}'>{html.escape(str(r['Rank']))}</span></td>"
+                f"<td class='mono'>{html.escape(str(r['Batch']))}</td>"
+                f"<td class='food'>{html.escape(str(FOOD_BY_BATCH.get(r['Batch'], '—')))}</td>"
+                f"<td>{html.escape(str(r['Wholesaler']))}</td>"
+                f"<td><div class='risk'><span class='mono'>{r['Risk Score (%)']:.1f}%</span>"
+                f"<div class='risk-track'><div class='risk-fill' style='width:{min(max(r['Risk Score (%)'], 0), 100):.1f}%'></div></div></div></td>"
+                f"<td class='num'>{r['Sick']}</td><td class='num'>{r['Healthy']}</td><td class='num'>{r['Wards Hit']}</td>"
+                f"<td><span class='reason-tag {'rc1' if r['Reason Code'].startswith('RC-01') else 'rc2' if r['Reason Code'].startswith('RC-02') else 'rc3'}'>{html.escape(str(r['Reason Code']))}</span></td></tr>"
+                for _, r in top_3_suspects.iterrows()
+            )
+            st.markdown(f"""
+    <table class="wrap-table top3">
+      <thead><tr><th>Rank</th><th>Batch</th><th>Food</th><th>Wholesaler</th><th title="Laplace Smoothed Posterior Probability">Bayesian Risk</th>
+      <th class="num">Sick</th><th class="num">Healthy</th><th class="num">Wards Hit</th><th>Reason Code</th></tr></thead>
+      <tbody>{top3_rows}</tbody>
+    </table>
+    """, unsafe_allow_html=True)
 
-        st.markdown("#### 2. Underlying Bayesian Laplace math & automated temporal test (`pytest`)")
-        st.latex(r"P(\text{Risk} \mid \text{Batch}) = \frac{\text{Confirmed Sick Descendants} + 1}{\text{Total Exposed (Sick + Healthy Controls)} + 2}")
+        # HOTSPOTS: which wards and vendors carry the most confirmed cases (up to the selected day)
+        with st.container(border=True):
+            st.subheader("Hotspots: most affected wards & vendors", anchor="hotspots")
+            st.caption("Ranked by confirmed sick cases, then by attack rate (share of reports from there that are sick). "
+                       "★ = linked to the top-1 suspect batch.")
+            vendor_ward = df_vendors.drop_duplicates('vendor_id')[['vendor_id', 'ward']]
+            suspect_vendor_ids = set(df_vendors.loc[df_vendors['batch_received'] == prime_suspect, 'vendor_id'])
+            exposure = available_reports.merge(vendor_ward, left_on='reported_vendor', right_on='vendor_id', how='inner')
+            exposure['sick'] = exposure['status'].eq('Sick')
+            exposure['suspect_sick'] = exposure['sick'] & exposure['reported_vendor'].isin(suspect_vendor_ids)
+
+            def rank_hotspots(group_col):
+                g = exposure.groupby(group_col).agg(sick=('sick', 'sum'), reports=('sick', 'size'), suspect=('suspect_sick', 'sum')).reset_index()
+                g['attack'] = (g['sick'] + 1) / (g['reports'] + 2) * 100   # same Laplace smoothing as the batch engine
+                g = g.sort_values(['sick', 'attack'], ascending=False).reset_index(drop=True)
+                g.insert(0, 'rank', [f"#{i + 1}" for i in range(len(g))])
+                return g
+
+            ward_rank, vendor_rank = rank_hotspots('ward'), rank_hotspots('reported_vendor')
+            vendor_rank = vendor_rank.merge(vendor_ward, left_on='reported_vendor', right_on='vendor_id', how='left')
+
+            def hotspot_table(df, name_col, sub_col=None, n=8):
+                rows = ""
+                for _, r in df.head(n).iterrows():
+                    name = html.escape(str(r[name_col]))
+                    sub = f"<div class='hs-sub'>{html.escape(str(r[sub_col]))}</div>" if sub_col else ""
+                    star = " <span class='hs-star' title='Linked to the top-1 suspect batch'>★</span>" if r['suspect'] > 0 else ""
+                    rows += (f"<tr><td><span class='rank-chip {'first' if r['rank'] == '#1' else ''}'>{r['rank']}</span></td>"
+                             f"<td>{name}{star}{sub}</td><td class='num'>{int(r['sick'])}</td><td class='num'>{int(r['reports'])}</td>"
+                             f"<td><div class='risk'><span class='mono'>{r['attack']:.0f}%</span><div class='risk-track'>"
+                             f"<div class='risk-fill' style='width:{min(r['attack'], 100):.0f}%'></div></div></div></td></tr>")
+                return ('<table class="wrap-table hotspot"><thead><tr><th>Rank</th><th>' + ('Ward' if not sub_col else 'Vendor')
+                        + '</th><th class="num">Sick</th><th class="num">Reports</th><th>Attack rate</th></tr></thead><tbody>'
+                        + rows + '</tbody></table>')
+
+            ward_col, vendor_col = st.columns(2, gap="medium")
+            with ward_col:
+                st.markdown(f"<div class='hs-title'>▲ Ward ranking <b>{len(ward_rank)} wards</b></div>", unsafe_allow_html=True)
+                st.markdown(hotspot_table(ward_rank, 'ward'), unsafe_allow_html=True)
+            with vendor_col:
+                st.markdown(f"<div class='hs-title'>▪ Vendor ranking <b>{len(vendor_rank)} vendors</b></div>", unsafe_allow_html=True)
+                st.markdown(hotspot_table(vendor_rank, 'reported_vendor', sub_col='ward'), unsafe_allow_html=True)
+            with st.expander("Show the full ward and vendor rankings"):
+                full_w, full_v = st.columns(2, gap="medium")
+                full_w.dataframe(
+                    ward_rank[['rank', 'ward', 'sick', 'reports', 'attack']],
+                    column_config={"rank": st.column_config.TextColumn("Rank", width=60), "ward": st.column_config.TextColumn("Ward"),
+                                   "sick": st.column_config.NumberColumn("Sick", width=60), "reports": st.column_config.NumberColumn("Reports", width=75),
+                                   "attack": st.column_config.ProgressColumn("Attack rate", format="%.0f%%", min_value=0, max_value=100, width=120)},
+                    width="stretch", height=fit_height(len(ward_rank)), row_height=TABLE_ROW_H, hide_index=True)
+                full_v.dataframe(
+                    vendor_rank[['rank', 'reported_vendor', 'ward', 'sick', 'attack']],
+                    column_config={"rank": st.column_config.TextColumn("Rank", width=60), "reported_vendor": st.column_config.TextColumn("Vendor", width=95),
+                                   "ward": st.column_config.TextColumn("Ward"), "sick": st.column_config.NumberColumn("Sick", width=60),
+                                   "attack": st.column_config.ProgressColumn("Attack rate", format="%.0f%%", min_value=0, max_value=100, width=120)},
+                    width="stretch", height=fit_height(len(vendor_rank)), row_height=TABLE_ROW_H, hide_index=True)
+
+    with tab_pf:
+        st.caption("Proof: why the answer is right, and found early")
+        with st.container(border=True):
+            st.subheader("Simple baseline (raw case count & co-occurrence)")
+            st.caption("Fails by flagging popular foods eaten by everyone.")
+            naive_df = sick_patients.merge(df_vendors, left_on='reported_vendor', right_on='vendor_id')
+            naive_counts = naive_df['batch_received'].value_counts().reset_index()
+            naive_counts.columns = ['Batch', 'Raw Sick Co-occurrence']
+            base_tbl, base_note = st.columns([1, 1], gap="large")
+            with base_tbl:
+                st.dataframe(
+                    naive_counts,
+                    column_config={
+                        "Batch": st.column_config.TextColumn("Batch"),
+                        "Raw Sick Co-occurrence": st.column_config.ProgressColumn(
+                            "Raw sick co-occurrence", format="%d", min_value=0,
+                            max_value=int(naive_counts['Raw Sick Co-occurrence'].max()) if len(naive_counts) else 1, width=190),
+                    },
+                    width="stretch", height=fit_height(len(naive_counts)), row_height=TABLE_ROW_H, hide_index=True
+                )
+            with base_note:
+                base_batch, base_sick = raw_count_leader(sick_patients)
+                if base_batch is None:
+                    st.info("No confirmed sick cases yet, so the baseline has nothing to rank.")
+                elif base_batch != prime_suspect:
+                    stock_share = df_vendors.loc[df_vendors['batch_received'] == base_batch, 'vendor_id'].nunique() / total_vendors
+                    base_row = df_scores[df_scores['Batch'] == base_batch]
+                    base_healthy = int(base_row['Healthy'].iloc[0]) if not base_row.empty else 0
+                    st.error(f"**Baseline Failure:** Flags `{base_batch}` as #1 because {stock_share:.0%} of vendors stock it "
+                             f"({base_sick} sick eaters, even though {base_healthy} healthy people also had it). "
+                             f"The Bayesian engine ranks `{prime_suspect}` first instead.")
+                else:
+                    st.info(f"The baseline agrees with the Bayesian engine on `{base_batch}` at this point in the outbreak.")
+
+        # RUBRIC: EARLY DETECTION ACROSS DAYS (Proving Detection Before All Cases Arrive)
+        with st.expander("Early detection proof (Day 1 vs Day 2 vs Day 3 trajectory & mathematical model)", expanded=True):
+            st.markdown("#### 1. Early source detection (before all cases or lab results arrive)")
+            day_progression = []
+            for d in [1, 2, 3]:
+                _, d_sick, _, d_scores, _ = run_bayesian_traceback(cleaned_patients, df_vendors, df_batches, d)
+                top_d = d_scores.iloc[0]
+                d_base, _ = raw_count_leader(d_sick)
+                day_progression.append({
+                    'Timeline': f"Day {d} ({'Early Onset - 25% Data' if d==1 else 'Mid Outbreak' if d==2 else 'Full Data'})",
+                    'Top-1 Ranked Batch': top_d['Batch'],
+                    'Bayesian Risk (%)': f"{top_d['Risk Score (%)']}%",
+                    'Top-3 Ranking': " › ".join(f"{short_name(b)} {r}%" for b, r in zip(d_scores['Batch'].head(3), d_scores['Risk Score (%)'].head(3))),
+                    'Confirmed Sick Cases Used': top_d['Sick'],
+                    'Healthy Controls Used': top_d['Healthy'],
+                    'Beats Raw Count Baseline?': (f"✅ YES (Isolates {short_name(top_d['Batch'])} over {short_name(d_base)})"
+                                                  if d_base is not None and d_base != top_d['Batch'] else "Same pick as baseline")
+                })
+            # Rendered as a wrapping table so it fits laptop screens without a horizontal scrollbar
+            day_df = pd.DataFrame(day_progression)
+            day_head = "".join(f"<th>{html.escape(c)}</th>" for c in day_df.columns)
+            day_body = "".join(
+                "<tr>" + "".join(f"<td>{html.escape(str(v)).replace('✅ ', '<span class=ok-dot></span>')}</td>" for v in row) + "</tr>"
+                for row in day_df.itertuples(index=False)
+            )
+            st.markdown(f'<table class="wrap-table"><thead><tr>{day_head}</tr></thead><tbody>{day_body}</tbody></table>', unsafe_allow_html=True)
+
+            st.markdown("#### 2. Underlying Bayesian Laplace math & automated temporal test (`pytest`)")
+            st.latex(r"P(\text{Risk} \mid \text{Batch}) = \frac{\text{Confirmed Sick Descendants} + 1}{\text{Total Exposed (Sick + Healthy Controls)} + 2}")
         
-        # Temporal leakage assertion check right inside UI
-        max_day_in_subset = int(available_reports['report_day'].max()) if not available_reports.empty else current_day
-        assert max_day_in_subset <= current_day, "Temporal Leakage Detected!"
-        st.info(f"**Temporal Integrity Check Passed (`report_day <= {current_day}`):** Maximum `report_day` in active memory is **Day {max_day_in_subset}**. Zero future cases leaked.")
+            # Temporal leakage assertion check right inside UI
+            max_day_in_subset = int(available_reports['report_day'].max()) if not available_reports.empty else current_day
+            assert max_day_in_subset <= current_day, "Temporal Leakage Detected!"
+            st.info(f"**Temporal Integrity Check Passed (`report_day <= {current_day}`):** Maximum `report_day` in active memory is **Day {max_day_in_subset}**. Zero future cases leaked.")
 
-    # RUBRIC: TARGETED RECALL LIST (NOT A BROAD ONE) + EVIDENCE TRAIL FOR EACH RANKING
-    with st.container(border=True):
-        st.subheader("Targeted recall & vendor investigation list", anchor="recall")
-        st.caption("Targets ONLY vendors linked to the Top-1 contaminated batch—sparing innocent businesses.")
-        targeted_vendors = df_vendors[df_vendors['batch_received'] == prime_suspect].copy()
-        v_case_counts = sick_patients.groupby('reported_vendor').size().reset_index(name='Confirmed Sick')
-        targeted_list = targeted_vendors.merge(v_case_counts, left_on='vendor_id', right_on='reported_vendor', how='left').fillna({'Confirmed Sick': 0})
-        targeted_list['Confirmed Sick'] = targeted_list['Confirmed Sick'].astype(int)
-        targeted_list['Action'] = np.where(targeted_list['Confirmed Sick'] > 0, "🚨 Priority Sample & Quarantine", "⚠️ Precautionary Batch Pull")
-        targeted_list = targeted_list.sort_values(by='Confirmed Sick', ascending=False)
+    with tab_ac:
+        st.caption("Action: who to recall and the evidence behind it")
+        # RUBRIC: TARGETED RECALL LIST (NOT A BROAD ONE) + EVIDENCE TRAIL FOR EACH RANKING
+        with st.container(border=True):
+            st.subheader("Targeted recall & vendor investigation list", anchor="recall")
+            st.caption("Targets ONLY vendors linked to the Top-1 contaminated batch—sparing innocent businesses.")
+            targeted_vendors = df_vendors[df_vendors['batch_received'] == prime_suspect].copy()
+            v_case_counts = sick_patients.groupby('reported_vendor').size().reset_index(name='Confirmed Sick')
+            targeted_list = targeted_vendors.merge(v_case_counts, left_on='vendor_id', right_on='reported_vendor', how='left').fillna({'Confirmed Sick': 0})
+            targeted_list['Confirmed Sick'] = targeted_list['Confirmed Sick'].astype(int)
+            targeted_list['Action'] = np.where(targeted_list['Confirmed Sick'] > 0, "🚨 Priority Sample & Quarantine", "⚠️ Precautionary Batch Pull")
+            targeted_list = targeted_list.sort_values(by='Confirmed Sick', ascending=False)
 
-        st.metric(
-            label="Targeted Scope vs. Broad City-Wide Recall",
-            value=f"{len(targeted_list)} Vendors Quarantined",
-            delta=f"{total_vendors - len(targeted_list)} Innocent Vendors Spared ({(total_vendors - len(targeted_list)) / total_vendors:.1%} Disruption Saved)"
-        )
-        recall_rows = targeted_list[['vendor_id', 'ward', 'batch_received', 'Confirmed Sick', 'Action']].head(8)
-        st.dataframe(
-            recall_rows.assign(Action=recall_rows['Action'].str.replace(r'^\W+\s*', '', regex=True)),
-            column_config={
-                "vendor_id": st.column_config.TextColumn("Vendor", width=100),
-                "ward": st.column_config.TextColumn("Ward"),
-                "batch_received": st.column_config.TextColumn("Batch"),
-                "Confirmed Sick": st.column_config.ProgressColumn(
-                    "Confirmed sick", format="%d", min_value=0,
-                    max_value=max(int(recall_rows['Confirmed Sick'].max()), 1) if len(recall_rows) else 1, width=150),
-                "Action": st.column_config.TextColumn("Action"),
-            },
-            width="stretch",
-            height=fit_height(len(recall_rows)),
-            row_height=TABLE_ROW_H,
-            hide_index=True
-        )
+            st.metric(
+                label="Targeted Scope vs. Broad City-Wide Recall",
+                value=f"{len(targeted_list)} Vendors Quarantined",
+                delta=f"{total_vendors - len(targeted_list)} Innocent Vendors Spared ({(total_vendors - len(targeted_list)) / total_vendors:.1%} Disruption Saved)"
+            )
+            recall_rows = targeted_list[['vendor_id', 'ward', 'batch_received', 'Confirmed Sick', 'Action']].head(8)
+            st.dataframe(
+                recall_rows.assign(Action=recall_rows['Action'].str.replace(r'^\W+\s*', '', regex=True)),
+                column_config={
+                    "vendor_id": st.column_config.TextColumn("Vendor", width=100),
+                    "ward": st.column_config.TextColumn("Ward"),
+                    "batch_received": st.column_config.TextColumn("Batch"),
+                    "Confirmed Sick": st.column_config.ProgressColumn(
+                        "Confirmed sick", format="%d", min_value=0,
+                        max_value=max(int(recall_rows['Confirmed Sick'].max()), 1) if len(recall_rows) else 1, width=150),
+                    "Action": st.column_config.TextColumn("Action"),
+                },
+                width="stretch",
+                height=fit_height(len(recall_rows)),
+                row_height=TABLE_ROW_H,
+                hide_index=True
+            )
 
-        recall_doc = f"""========================================================
-OFFICIAL MUNICIPAL PUBLIC HEALTH TARGETED RECALL ORDER
-Region: Thane, Kalyan & Dombivli ({total_wards} Municipal Wards)
-========================================================
-TOP-1 SUSPECT BATCH: {top_1_suspect['Batch']}
-WHOLESALER SOURCE:   {top_1_suspect['Wholesaler']}
-BAYESIAN RISK SCORE: {top_1_suspect['Risk Score (%)']}% ({top_1_suspect['Relative Risk']})
-REASON CODE:         {top_1_suspect['Reason Code']}
-TARGETED SCOPE:      {len(targeted_list)} / {total_vendors} Vendors ({total_vendors - len(targeted_list)} Innocent Vendors Spared)
+            recall_doc = f"""========================================================
+    OFFICIAL MUNICIPAL PUBLIC HEALTH TARGETED RECALL ORDER
+    Region: Thane, Kalyan & Dombivli ({total_wards} Municipal Wards)
+    ========================================================
+    TOP-1 SUSPECT BATCH: {top_1_suspect['Batch']}
+    WHOLESALER SOURCE:   {top_1_suspect['Wholesaler']}
+    BAYESIAN RISK SCORE: {top_1_suspect['Risk Score (%)']}% ({top_1_suspect['Relative Risk']})
+    REASON CODE:         {top_1_suspect['Reason Code']}
+    TARGETED SCOPE:      {len(targeted_list)} / {total_vendors} Vendors ({total_vendors - len(targeted_list)} Innocent Vendors Spared)
 
-TARGETED VENDOR QUARANTINE LIST:
-{targeted_list[['vendor_id', 'ward', 'Confirmed Sick', 'Action']].to_string(index=False)}
-========================================================"""
-        st.download_button(
-            label="Export Recall Order (.txt)",
-            data=recall_doc,
-            file_name=f"Targeted_Recall_Day_{current_day}.txt",
-            mime="text/plain"
-        )
+    TARGETED VENDOR QUARANTINE LIST:
+    {targeted_list[['vendor_id', 'ward', 'Confirmed Sick', 'Action']].to_string(index=False)}
+    ========================================================"""
+            st.download_button(
+                label="Export Recall Order (.txt)",
+                data=recall_doc,
+                file_name=f"Targeted_Recall_Day_{current_day}.txt",
+                mime="text/plain"
+            )
 
-    with st.container(border=True):
-        st.subheader("Per-ranking evidence trail inspector", anchor="evidence")
-        st.caption("Select ANY ranked batch to inspect its full Patient → Vendor → Ward → Consumption Time → Wholesaler trail.")
-        selected_evidence_batch = st.selectbox("Inspect Evidence Trail For Ranking:", df_scores['Batch'].tolist())
-        selected_row = df_scores[df_scores['Batch'] == selected_evidence_batch].iloc[0]
-        st.markdown(f"**Reason Code:** `{selected_row['Reason Code']}` · **Food:** {FOOD_BY_BATCH.get(selected_evidence_batch, '—')}")
+        with st.container(border=True):
+            st.subheader("Per-ranking evidence trail inspector", anchor="evidence")
+            st.caption("Select ANY ranked batch to inspect its full Patient → Vendor → Ward → Consumption Time → Wholesaler trail.")
+            selected_evidence_batch = st.selectbox("Inspect Evidence Trail For Ranking:", df_scores['Batch'].tolist())
+            selected_row = df_scores[df_scores['Batch'] == selected_evidence_batch].iloc[0]
+            st.markdown(f"**Reason Code:** `{selected_row['Reason Code']}` · **Food:** {FOOD_BY_BATCH.get(selected_evidence_batch, '—')}")
 
-        trace_df = sick_patients.merge(df_vendors, left_on='reported_vendor', right_on='vendor_id')
-        trace_df = trace_df[trace_df['batch_received'] == selected_evidence_batch].merge(df_batches, left_on='batch_received', right_on='batch_id')
-        cols_to_show = ['patient_id', 'consumption_time', 'report_day', 'is_late_report', 'reported_vendor', 'ward', 'supplier']
-        trail_rows = trace_df[cols_to_show].sort_values(by='consumption_time', ascending=False).head(10)
-        st.dataframe(
-            trail_rows,
-            column_config={
-                "patient_id": st.column_config.TextColumn("Patient", width=115),
-                "consumption_time": st.column_config.TextColumn("Ate at", width=140),
-                "report_day": st.column_config.NumberColumn("Reported", format="Day %d", width=95),
-                "is_late_report": st.column_config.CheckboxColumn("Late?", width=70),
-                "reported_vendor": st.column_config.TextColumn("Vendor", width=100),
-                "ward": st.column_config.TextColumn("Ward"),
-                "supplier": st.column_config.TextColumn("Wholesaler"),
-            },
-            width="stretch",
-            height=fit_height(len(trail_rows)),
-            row_height=TABLE_ROW_H,
-            hide_index=True
-        )
+            trace_df = sick_patients.merge(df_vendors, left_on='reported_vendor', right_on='vendor_id')
+            trace_df = trace_df[trace_df['batch_received'] == selected_evidence_batch].merge(df_batches, left_on='batch_received', right_on='batch_id')
+            cols_to_show = ['patient_id', 'consumption_time', 'report_day', 'is_late_report', 'reported_vendor', 'ward', 'supplier']
+            trail_rows = trace_df[cols_to_show].sort_values(by='consumption_time', ascending=False).head(10)
+            st.dataframe(
+                trail_rows,
+                column_config={
+                    "patient_id": st.column_config.TextColumn("Patient", width=115),
+                    "consumption_time": st.column_config.TextColumn("Ate at", width=140),
+                    "report_day": st.column_config.NumberColumn("Reported", format="Day %d", width=95),
+                    "is_late_report": st.column_config.CheckboxColumn("Late?", width=70),
+                    "reported_vendor": st.column_config.TextColumn("Vendor", width=100),
+                    "ward": st.column_config.TextColumn("Ward"),
+                    "supplier": st.column_config.TextColumn("Wholesaler"),
+                },
+                width="stretch",
+                height=fit_height(len(trail_rows)),
+                row_height=TABLE_ROW_H,
+                hide_index=True
+            )
 
-# ==========================================
-# TAB 2: GEOGRAPHIC MAP (Thane, Kalyan, Dombivli)
-# ==========================================
+    # ==========================================
+    # TAB 2: GEOGRAPHIC MAP (Thane, Kalyan, Dombivli)
+    # ==========================================
 elif view_option == "Data Directory":
     st.subheader("Data directory")
     st.caption("Every name in the simulated outbreak dataset.")
