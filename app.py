@@ -104,15 +104,33 @@ st.markdown("""
 .log b { color: var(--text); font-weight: 500; float: right; }
 
 /* Status bar */
-.statusbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 0 14px 0; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
-.brand { display: flex; align-items: center; gap: 12px; }
-.brand .name, .login-head h1.wordmark {
+.statusbar { display: grid; grid-template-areas: "status" "brand"; gap: 4px; padding: 0 0 18px 0; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+.statusbar .spacer { display: none; }
+.statusbar .status { grid-area: status; justify-self: end; gap: 12px; white-space: nowrap; }
+.statusbar .status > * { flex-shrink: 0; }
+.statusbar .brand { grid-area: brand; justify-self: center; }
+.brand { text-align: center; }
+.brand .name { font-size: clamp(2.6rem, 4.4vw, 4.4rem); transform-origin: center bottom; }
+.brand .area { margin-top: 10px; font-size: 1rem; font-style: italic; letter-spacing: 0.04em; color: var(--muted); }
+.brand .area::before, .brand .area::after { content: ""; display: inline-block; width: 28px; height: 1px; background: var(--accent-line); vertical-align: middle; margin: 0 12px; }
+@media (max-width: 700px) { .statusbar .status { justify-self: center; } }
+
+/* Acrylic Didone wordmark: same amber, frosted sheen on the letters and a soft blurred halo behind them */
+.wordmark {
+    position: relative; display: inline-block; isolation: isolate;
     font-family: 'Bodoni Moda', 'Didot', 'Bodoni 72', serif !important; font-optical-sizing: auto; font-weight: 900 !important;
-    font-size: 2.6rem; line-height: 0.95; letter-spacing: -0.035em; color: var(--accent) !important;
-    transform: scaleY(1.12); transform-origin: left bottom; text-shadow: 0 0 28px rgba(217,164,65,0.25); margin-bottom: 4px;
+    line-height: 0.95; letter-spacing: -0.035em; transform: scaleY(1.12); margin-bottom: 4px;
+    color: transparent !important;
+    background: linear-gradient(172deg, color-mix(in srgb, var(--accent) 52%, #ffffff) 0%, var(--accent) 34%,
+                var(--accent) 62%, color-mix(in srgb, var(--accent) 78%, #000000) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-stroke: 0.5px color-mix(in srgb, var(--accent) 55%, #ffffff);
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));
 }
-.brand .area { margin-top: 2px; }
-.brand .area { font-size: 0.85rem; color: var(--muted); }
+.wordmark::before {
+    content: attr(data-text); position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    color: var(--accent); -webkit-text-fill-color: var(--accent); -webkit-text-stroke: 0; filter: blur(14px); opacity: 0.5;
+}
 .status { display: flex; align-items: center; gap: 18px; font-family: var(--mono); font-size: 0.85rem; color: var(--muted); }
 .status .live { color: var(--teal); }
 .status .live::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); margin-right: 8px; box-shadow: 0 0 0 3px var(--teal-soft); }
@@ -634,7 +652,7 @@ def _render_login(client, store):
 .login-head { text-align: center; margin-bottom: 18px; animation: rise .5s ease-out both; }
 .login-head .kicker { font-family: var(--mono); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
 .login-head h1 { color: var(--text) !important; font-size: 2rem !important; margin: 6px 0 4px 0 !important; padding: 0 !important; }
-.login-head h1.wordmark { font-size: 3rem !important; transform-origin: center bottom; margin: 10px 0 10px 0 !important; }
+.login-head h1.wordmark { color: transparent !important; font-size: 3.4rem !important; transform-origin: center bottom; margin: 10px 0 12px 0 !important; }
 .login-head p { color: var(--muted); font-size: .95rem; margin: 0; }
 .login-badge { display: inline-flex; gap: 8px; align-items: center; margin-top: 12px; padding: 4px 12px; font-family: var(--mono); font-size: .75rem;
                color: var(--teal); border: 1px solid var(--teal-line); background: var(--teal-soft); }
@@ -653,7 +671,7 @@ def _render_login(client, store):
         st.markdown("""
 <div class="login-head">
   <div class="kicker">Restricted · public-health officers only</div>
-  <h1 class="wordmark">Tracing the Source</h1>
+  <h1 class="wordmark" data-text="Tracing the Source">Tracing the Source</h1>
   <p>Case records are confidential. Verify your registered mobile number to continue.</p>
   <div class="login-badge">● WhatsApp OTP · SMS fallback · powered by MiniMoth</div>
 </div>""", unsafe_allow_html=True)
@@ -797,7 +815,7 @@ SPLASH_JS = r"""
   #tc-splash::before { content: ""; position: absolute; inset: 0; pointer-events: none;
     background: linear-gradient(var(--sp-line) 1px, transparent 1px) 0 0 / 24px 24px, linear-gradient(90deg, var(--sp-line) 1px, transparent 1px) 0 0 / 24px 24px; }
   #tc-splash.out { opacity: 0; transform: scale(1.04); pointer-events: none; }
-  #tc-splash .sp-wrap { position: relative; width: min(560px, 88vw); display: flex; flex-direction: column; align-items: center; gap: 22px; }
+  #tc-splash .sp-wrap { position: relative; width: min(620px, 90vw); display: flex; flex-direction: column; align-items: center; gap: 22px; }
   #tc-splash .sp-radar { position: relative; width: 150px; height: 150px; }
   #tc-splash .sp-radar .ring { position: absolute; inset: 0; border-radius: 50%; border: 1px solid var(--sp-accent); opacity: .35; }
   #tc-splash .sp-radar .ring.r2 { inset: 22px; opacity: .25; } #tc-splash .sp-radar .ring.r3 { inset: 46px; opacity: .2; }
@@ -813,9 +831,14 @@ SPLASH_JS = r"""
   #tc-splash .sp-radar .bl { left: -14px; bottom: -14px; border-bottom-width: 2px; border-left-width: 2px; }
   #tc-splash .sp-radar .bb { right: -14px; bottom: -14px; border-bottom-width: 2px; border-right-width: 2px; }
   #tc-splash.locked .sp-radar .br { border-color: var(--sp-teal); transition: border-color .3s; }
-  #tc-splash .sp-title { font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: clamp(1.6rem, 4vw, 2.3rem); letter-spacing: .14em; min-height: 1.3em; }
+  #tc-splash .sp-title { position: relative; font-family: 'Bodoni Moda', 'Didot', 'Bodoni 72', serif; font-weight: 900; font-size: clamp(2.6rem, 6vw, 4.2rem);
+    letter-spacing: -0.035em; line-height: 1; min-height: 1.15em; white-space: nowrap; transform: scaleY(1.12); transform-origin: center bottom; }
+  #tc-splash .sp-title .t { color: transparent; -webkit-background-clip: text; background-clip: text;
+    background-image: linear-gradient(172deg, color-mix(in srgb, var(--sp-accent) 52%, #ffffff) 0%, var(--sp-accent) 34%, var(--sp-accent) 62%, color-mix(in srgb, var(--sp-accent) 78%, #000000) 100%);
+    -webkit-text-stroke: 0.5px color-mix(in srgb, var(--sp-accent) 55%, #ffffff); filter: drop-shadow(0 0 16px rgba(217,164,65,.45)); }
+  #tc-splash .sp-title .caret { height: .8em; width: .12em; }
   #tc-splash .sp-title .caret { display: inline-block; width: .55em; height: 1em; margin-left: 4px; vertical-align: -.12em; background: var(--sp-accent); animation: sp-caret .8s steps(2) infinite; }
-  #tc-splash .sp-sub { margin-top: -14px; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--sp-muted); }
+  #tc-splash .sp-sub { margin-top: -10px; font-family: 'Inter', system-ui, sans-serif; font-size: 1rem; font-style: italic; letter-spacing: .04em; color: var(--sp-muted); }
   #tc-splash .sp-log { width: 100%; min-height: 150px; font-size: .82rem; line-height: 1.95; color: var(--sp-muted); }
   #tc-splash .sp-log div { display: flex; justify-content: space-between; gap: 16px; animation: sp-in .25s ease-out both; }
   #tc-splash .sp-log b { font-weight: 600; color: var(--sp-teal); }
@@ -839,14 +862,14 @@ SPLASH_JS = r"""
       '<div class="blip b1"></div><div class="blip b2"></div><div class="blip b3"></div><div class="core"></div>' +
       '<i class="br tl"></i><i class="br tr"></i><i class="br bl"></i><i class="br bb"></i></div>' +
       '<div class="sp-title"><span class="t"></span><span class="caret"></span></div>' +
-      '<div class="sp-sub">Outbreak console · __AREA__</div>' +
+      '<div class="sp-sub">Cut through the noise. Find the source</div>' +
       '<div class="sp-log"></div>' +
       '<div class="sp-bar"><i></i></div>' +
       '<div class="sp-foot"><span class="pct">0%</span><span>Click or press any key to skip</span></div>' +
     '</div>';
   d.body.appendChild(el);
 
-  const title = 'TRACING THE SOURCE', tEl = el.querySelector('.t'), log = el.querySelector('.sp-log'),
+  const title = 'Tracing the Source', tEl = el.querySelector('.t'), log = el.querySelector('.sp-log'),
         bar = el.querySelector('.sp-bar i'), pct = el.querySelector('.pct');
   const steps = [
     ['Ingesting __RAW__ case reports', 'OK'],
@@ -1023,8 +1046,9 @@ THEME_TYPE = (st.context.theme.type or "dark") if hasattr(st.context, "theme") e
 # HEADER & 3-TAB HORIZONTAL RADIO MENU
 st.markdown(f"""
 <div class="statusbar">
+  <div class="spacer"></div>
   <div class="brand">
-    <div><div class="name">Tracing the Source</div><div class="area">Thane · Kalyan · Dombivli outbreak console</div></div></div>
+    <div class="name wordmark" data-text="Tracing the Source">Tracing the Source</div><div class="area">Cut through the noise. Find the source</div></div>
   <div class="status"><span class="live">Live</span><span>Day {current_day} of 3</span>
     <button class="mode-toggle" type="button" title="Switch light / dark mode"><span class="to-light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg> Light</span><span class="to-dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg> Dark</span></button></div>
 </div>
