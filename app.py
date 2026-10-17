@@ -52,7 +52,7 @@ st.markdown("""
     66%  { transform: translate(-5%, 5%) rotate(-6deg) scale(1.04); }
     100% { transform: translate(3%, 3%) rotate(12deg) scale(1.12); }
 }
-[data-testid="stAppViewContainer"] { position: relative; z-index: 1; background: transparent !important; }
+[data-testid="stAppViewContainer"] { z-index: 1; background: transparent !important; }
 [data-testid="stAppViewContainer"]::before {
     content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
     background:
@@ -646,7 +646,7 @@ def _render_login(client, store):
                 if st.form_submit_button("Send verification code"):
                     phone = normalize_phone(phone_in)
                     if not phone:
-                        st.error(ERROR_MESSAGES["INVALID_PHONE"])
+                        st.error(ERROR_MESSAGES["BAD_PHONE_FORMAT"])
                     else:
                         try:
                             # Numbers off the allow-list get the same screen but no code is sent,

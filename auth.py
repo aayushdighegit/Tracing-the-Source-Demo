@@ -32,7 +32,8 @@ REFRESH_MARGIN_S = 30            # refresh the access token this long before it 
 HANDLE_MAX_AGE_S = 10 * 24 * 3600  # matches MiniMoth's default refresh window
 
 ERROR_MESSAGES = {
-    "INVALID_PHONE": "That isn't a valid Indian mobile number.",
+    "BAD_PHONE_FORMAT": "That isn't a valid Indian mobile number (10 digits starting with 6-9).",
+    "INVALID_PHONE": "MiniMoth couldn't send a code to this number. Use a real, active mobile number: example numbers like 98765 43210 are rejected with a live key.",
     "OTP_RATE_LIMITED": "Too many codes requested for this number. Please wait 10 minutes.",
     "OTP_NOT_FOUND": "That code has expired or was already used. Request a new one.",
     "INVALID_OTP": "Incorrect code. Please try again.",
